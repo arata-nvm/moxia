@@ -18,6 +18,11 @@ struct MemoryMap {
   UINT32 descriptor_version;
 };
 
+void Halt(void) {
+  while (1)
+    __asm__("hlt");
+}
+
 EFI_STATUS GetMemoryMap(struct MemoryMap *map) {
   if (map->buffer == NULL) {
     return EFI_BUFFER_TOO_SMALL;
@@ -214,26 +219,28 @@ EFI_STATUS UefiMain(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table) {
   UINTN kernel_file_size = file_info->FileSize;
 
   EFI_PHYSICAL_ADDRESS kernel_base_addr = 0x100000;
-  gBS->AllocatePages(
+  EFI_STATUS status;
+  status = gBS->AllocatePages(
       AllocateAddress, EfiLoaderData,
       (kernel_file_size + 0xfff) / 0x1000, &kernel_base_addr);
+  if (EFI_ERROR(status)) {
+    Print(L"failed to allocate pages: %r\n", status);
+    Halt();
+  }
   kernel_file->Read(kernel_file, &kernel_file_size, (VOID *)kernel_base_addr);
   Print(L"Kernel: 0x%0lx (%lu bytes)\n", kernel_base_addr, kernel_file_size);
 
-  EFI_STATUS status;
   status = gBS->ExitBootServices(image_handle, memmap.map_key);
   if (EFI_ERROR(status)) {
     status = GetMemoryMap(&memmap);
     if (EFI_ERROR(status)) {
       Print(L"failed to get memory map: %r\n", status);
-      while (1)
-        ;
+      Halt();
     }
     status = gBS->ExitBootServices(image_handle, memmap.map_key);
     if (EFI_ERROR(status)) {
       Print(L"Could no exit boot service: %r\n", status);
-      while (1)
-        ;
+      Halt();
     }
   }
 
