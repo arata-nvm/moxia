@@ -7,5 +7,5 @@ build:
 	&& build
 
 .PHONY: run
-run:
+run: build
 	~/osbook/devenv/run_qemu.sh ~/edk2/Build/MoxiaLoaderX64/DEBUG_CLANG38/X64/Loader.efi
