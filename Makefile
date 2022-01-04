@@ -1,8 +1,11 @@
+SHELL=/bin/bash
+
 .PHONY: build
 build:
-	clang -target x86_64-pc-win32-coff -mno-red-zone -fno-stack-protector -fshort-wchar -Wall -c hello.c
-	lld-link /subsystem:efi_application /entry:EfiMain /out:hello.efi hello.o
+	cd ~/edk2 \
+	&& source edksetup.sh \
+	&& build
 
 .PHONY: run
 run:
-	~/osbook/devenv/run_qemu.sh hello.efi
+	~/osbook/devenv/run_qemu.sh ~/edk2/Build/MoxiaLoaderX64/DEBUG_CLANG38/X64/Loader.efi
