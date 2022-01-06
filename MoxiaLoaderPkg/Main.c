@@ -230,11 +230,6 @@ EFI_STATUS UefiMain(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table) {
         gop->Mode->FrameBufferBase + gop->Mode->FrameBufferSize,
         gop->Mode->FrameBufferSize);
 
-  UINT8 *frame_buffer = (UINT8 *)gop->Mode->FrameBufferBase;
-  for (UINTN i = 0; i < gop->Mode->FrameBufferSize; ++i) {
-    frame_buffer[i] = 255;
-  }
-
   EFI_FILE_PROTOCOL *kernel_file;
   root_dir->Open(
       root_dir, &kernel_file, L"\\kernel.elf",
@@ -314,6 +309,11 @@ EFI_STATUS UefiMain(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table) {
   default:
     Print(L"Unimplemented pixel format: %d\n", gop->Mode->Info->PixelFormat);
     Halt();
+  }
+
+  UINT8 *frame_buffer = (UINT8 *)gop->Mode->FrameBufferBase;
+  for (UINTN i = 0; i < gop->Mode->FrameBufferSize; ++i) {
+    frame_buffer[i] = 0;
   }
 
   UINT64 entry_addr = *(UINT64 *)(kernel_first_addr + 24);

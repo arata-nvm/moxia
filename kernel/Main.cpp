@@ -45,11 +45,9 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
     break;
   }
 
-  console = new (console_buf) Console(*pixel_writer, {0, 0, 0}, {255, 255, 255});
+  console = new (console_buf) Console(*pixel_writer, {255, 255, 255}, {0, 0, 0});
 
-  for (int i = 0; i < 27; ++i) {
-    printk("printk: %d\n", i);
-  }
+  printk("Hello, world!\n");
 
   while (1)
     __asm__("hlt");
