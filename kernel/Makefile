@@ -1,5 +1,5 @@
 TARGET = kernel.elf
-OBJS = main.o fonts.o graphics.o hankaku.o
+OBJS = main.o fonts.o graphics.o hankaku.o console.o
 
 CXXFLAGS += -O2 -Wall -g --target=x86_64-elf -ffreestanding -mno-red-zone -fno-exceptions -fno-rtti -std=c++17
 LDFLAGS += --entry KernelMain -z norelro --image-base 0x100000 --static
@@ -12,7 +12,7 @@ clean:
 	rm -rm *.o
 
 kernel.elf: $(OBJS) Makefile
-	ld.lld $(LDFLAGS) -o kernel.elf $(OBJS)
+	ld.lld $(LDFLAGS) -o kernel.elf $(OBJS) -lc
 
 %.o: %.cpp Makefile
 	clang++ $(CPPFLAGS) $(CXXFLAGS) -c $<
