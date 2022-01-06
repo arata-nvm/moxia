@@ -9,7 +9,7 @@ all: $(TARGET)
 
 .PHONY: clean
 clean:
-	rm -rm *.o
+	rm -rf *.o
 
 kernel.elf: $(OBJS) Makefile
 	ld.lld $(LDFLAGS) -o kernel.elf $(OBJS) -lc
