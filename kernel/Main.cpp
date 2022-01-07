@@ -2,6 +2,7 @@
 #include "console.hpp"
 #include "fonts.hpp"
 #include "graphics.hpp"
+#include "memory_manager.hpp"
 #include "memory_map.hpp"
 #include "paging.hpp"
 #include "segment.hpp"
@@ -11,9 +12,6 @@
 #include <stdio.h>
 #include <sys/types.h>
 
-void *operator new(size_t size, void *buf) {
-  return buf;
-}
 void operator delete(void *obj) noexcept {}
 
 extern "C" caddr_t sbrk(int incr) {
@@ -25,6 +23,9 @@ PixelWriter *pixel_writer;
 
 char console_buf[sizeof(Console)];
 Console *console;
+
+char memory_manager_buf[sizeof(BitmapMemoryManager)];
+BitmapMemoryManager *memory_manager;
 
 int printk(const char *format...) {
   va_list ap;
@@ -63,6 +64,25 @@ extern "C" void KernelMainNewStack(const FrameBufferConfig &frame_buffer_config,
   SetCSSS(kernel_cs, kernel_ss);
 
   SetupIdentityPageTable();
+
+  ::memory_manager = new (memory_manager_buf) BitmapMemoryManager();
+
+  const auto memory_map_base = reinterpret_cast<uintptr_t>(memory_map.buffer);
+  uintptr_t available_end = 0;
+  for (uintptr_t iter = memory_map_base; iter < memory_map_base + memory_map.map_size; iter += memory_map.descriptor_size) {
+    auto desc = reinterpret_cast<const MemoryDescriptor *>(iter);
+    if (available_end < desc->physical_start) {
+      memory_manager->MarkAllocated(FrameID{available_end / kBytesPerFrame}, (desc->physical_start - available_end) / kBytesPerFrame);
+    }
+
+    const auto physical_end = desc->physical_start + desc->number_of_pages * kUEFIPageSize;
+    if (IsAvailable(static_cast<MemoryType>(desc->type))) {
+      available_end = physical_end;
+    } else {
+      memory_manager->MarkAllocated(FrameID{desc->physical_start / kBytesPerFrame}, desc->number_of_pages * kUEFIPageSize / kBytesPerFrame);
+    }
+  }
+  memory_manager->SetMemoryRange(FrameID{1}, FrameID{available_end});
 
   while (1)
     __asm__("hlt");
