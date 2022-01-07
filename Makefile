@@ -4,6 +4,10 @@ SHELL=/bin/bash
 run: build
 	~/osbook/devenv/run_qemu.sh Loader.efi kernel.elf
 
+.PHONY: debug
+debug: export QEMU_OPTS=${QEMU_OPTS} -s -S -no-reboot
+debug: run
+
 .PHONY: build
 build: Loader.efi kernel.elf
 
