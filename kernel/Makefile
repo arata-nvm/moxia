@@ -1,5 +1,5 @@
 TARGET = kernel.elf
-OBJS = main.o fonts.o graphics.o hankaku.o console.o
+OBJS = main.o fonts.o graphics.o hankaku.o console.o asmfunc.o paging.o segment.o
 
 CXXFLAGS += -O2 -Wall -g --target=x86_64-elf -ffreestanding -mno-red-zone -fno-exceptions -fno-rtti -std=c++17
 LDFLAGS += --entry KernelMain -z norelro --image-base 0x100000 --static
@@ -16,6 +16,9 @@ kernel.elf: $(OBJS) Makefile
 
 %.o: %.cpp Makefile
 	clang++ $(CPPFLAGS) $(CXXFLAGS) -c $<
+
+%.o: %.asm Makefile
+	nasm -f elf64 -o $@ $<
 
 hankaku.o: hankaku.bin
 	objcopy -I binary -O elf64-x86-64 -B i386:x86-64 $< $@
