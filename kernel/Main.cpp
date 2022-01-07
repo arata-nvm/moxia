@@ -10,13 +10,6 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <sys/types.h>
-
-void operator delete(void *obj) noexcept {}
-
-extern "C" caddr_t sbrk(int incr) {
-  return NULL;
-}
 
 char pixel_writer_buf[sizeof(RGBResv8BitPixelWriter)];
 PixelWriter *pixel_writer;
