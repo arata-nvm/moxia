@@ -17,3 +17,7 @@ private:
   char buffer_[kRows][kColumns + 1];
   int cursor_row_, cursor_column_;
 };
+
+extern Console *console;
+
+void InitializeConsole();

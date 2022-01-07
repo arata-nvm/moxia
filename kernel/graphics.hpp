@@ -32,3 +32,7 @@ public:
   using PixelWriter::PixelWriter;
   virtual void Write(int x, int y, const PixelColor &c) override;
 };
+
+extern PixelWriter *pixel_writer;
+
+void InitializeGraphics(const FrameBufferConfig &frame_buffer_config);

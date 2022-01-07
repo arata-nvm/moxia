@@ -1,7 +1,6 @@
+#include "printk.hpp"
 #include <cerrno>
 #include <new>
-
-int printk(const char *format, ...);
 
 std::new_handler std::get_new_handler() noexcept {
   return [] {

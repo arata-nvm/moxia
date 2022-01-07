@@ -30,4 +30,10 @@ void SetCodeSegment(SegmentDescriptor &desc, DescriptorType type, uint32_t descr
 
 void SetDataSegment(SegmentDescriptor &desc, DescriptorType type, uint32_t descriptor_privilege_level, uint32_t base, uint32_t limit);
 
+const uint16_t kKernelDS = 0;
+const uint16_t kKernelCS = 1 << 3;
+const uint16_t kKernelSS = 2 << 3;
+
 void SetupSegments();
+
+void InitializeSegmentation();

@@ -1,5 +1,6 @@
 #include "console.hpp"
 #include "fonts.hpp"
+#include <new>
 #include <string.h>
 
 Console::Console(PixelWriter &writer, const PixelColor &fg_color, const PixelColor &bg_color)
@@ -35,4 +36,14 @@ void Console::NewLine() {
     }
     memset(buffer_[kRows - 1], 0, kColumns + 1);
   }
+}
+
+Console *console;
+
+namespace {
+char console_buf[sizeof(Console)];
+}
+
+void InitializeConsole() {
+  console = new (console_buf) Console(*pixel_writer, {255, 255, 255}, {0, 0, 0});
 }
