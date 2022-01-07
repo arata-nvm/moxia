@@ -77,6 +77,11 @@ extern "C" void KernelMainNewStack(const FrameBufferConfig &frame_buffer_config,
   }
   memory_manager->SetMemoryRange(FrameID{1}, FrameID{available_end});
 
+  if (auto err = InitializeHeap(*memory_manager)) {
+    printk("failed to allocate pages: %s\n", err.Name());
+    exit(1);
+  }
+
   while (1)
     __asm__("hlt");
 }
