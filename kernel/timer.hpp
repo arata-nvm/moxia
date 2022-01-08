@@ -2,6 +2,7 @@
 
 #include "message.hpp"
 #include <deque>
+#include <limits>
 #include <queue>
 #include <stdint.h>
 
@@ -31,7 +32,7 @@ class TimerManager {
 public:
   TimerManager(std::deque<Message> &msg_queue);
   void AddTimer(const Timer &timer);
-  void Tick();
+  bool Tick();
   unsigned long CurrentTick() const { return tick_; }
 
 private:
@@ -41,3 +42,5 @@ private:
 };
 
 extern TimerManager *timer_manager;
+
+extern const int kTaskTimerPeriod, kTaskTimerValue;

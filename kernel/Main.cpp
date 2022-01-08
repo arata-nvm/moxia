@@ -8,31 +8,23 @@
 #include "paging.hpp"
 #include "printk.hpp"
 #include "segment.hpp"
+#include "task.hpp"
 #include "timer.hpp"
 #include <cstdint>
 #include <deque>
 #include <string.h>
 
-struct TaskContext {
-  uint64_t cr3, rip, rflags, reserved1;
-  uint64_t cs, ss, fs, gs;
-  uint64_t rax, rbx, rcx, rdx, rdi, rsi, rsp, rbp;
-  uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
-  std::array<uint8_t, 512> fxsave_area;
-} __attribute__((packed));
-
-alignas(16) TaskContext task_b_ctx, task_a_ctx;
 alignas(16) uint8_t kernel_main_stack[1024 * 1024];
 std::deque<Message> *main_queue;
 
-void TaskB(int task_id, int data) {
-  printk("TaskB: task_id=%d, data=%d\n", task_id, data);
-  int count = 0;
-  while (true) {
-    ++count;
-    printk("Task B: %010d\n", count);
+uint64_t count_a, count_b;
 
-    SwitchContext(&task_a_ctx, &task_b_ctx);
+void TaskB(int task_id, int data) {
+  while (true) {
+    __asm__("cli");
+    ++count_b;
+    printk("TaskA: %010ull, TaskB: %010ull\r", count_a, count_b);
+    __asm__("sti");
   }
 }
 
@@ -67,17 +59,18 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
 
   *reinterpret_cast<uint32_t *>(&task_b_ctx.fxsave_area[24]) = 0x1f80;
 
+  InitializeTask();
+
   while (1) {
     __asm__("cli");
-    const auto tick = timer_manager->CurrentTick();
+    ++count_a;
+    printk("TaskA: %010ull, TaskB: %010ull\r", count_a, count_b);
     __asm__("sti");
-
-    printk("Task A: %ul\n", tick);
 
     __asm__("cli");
     if (main_queue->empty()) {
-      __asm__("sti");
-      SwitchContext(&task_b_ctx, &task_a_ctx);
+      __asm__("sti;"
+              "hlt");
       continue;
     }
 
