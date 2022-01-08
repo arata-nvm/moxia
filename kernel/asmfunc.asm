@@ -1,6 +1,18 @@
 bits 64
 section .text
 
+global LoadIDT
+LoadIDT:
+  push rbp
+  mov rbp, rsp
+  sub rsp, 10
+  mov [rsp], di
+  mov [rsp + 2], rsi
+  lidt [rsp]
+  mov rsp, rbp
+  pop rbp
+  ret
+
 global LoadGDT
 LoadGDT:
   push rbp

@@ -1,11 +1,7 @@
 #pragma once
 
+#include "x86_descriptor.hpp"
 #include <stdint.h>
-
-enum class DescriptorType {
-  kReadWrite = 2,
-  kExecuteRead = 10,
-};
 
 union SegmentDescriptor {
   uint64_t data;
