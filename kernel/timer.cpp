@@ -3,7 +3,7 @@
 #include "task.hpp"
 #include <limits>
 
-const int kTaskTimerPeriod = 4;
+const int kTaskTimerPeriod = 2;
 const int kTaskTimerValue = std::numeric_limits<int>::min();
 
 namespace {

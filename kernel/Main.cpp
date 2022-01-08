@@ -19,13 +19,20 @@ std::deque<Message> *main_queue;
 
 uint64_t count_a, count_b;
 
-void TaskB(int task_id, int data) {
+void TaskB(uint64_t task_id, int64_t data) {
+  printk("TaskB: task_id=%lu, data=%lx\n", task_id, data);
   while (true) {
     __asm__("cli");
     ++count_b;
     printk("TaskA: %010ull, TaskB: %010ull\r", count_a, count_b);
     __asm__("sti");
   }
+}
+
+void TaskIdle(uint64_t task_id, int64_t data) {
+  printk("TaskIdle: task_id=%lu, data=%lx\n", task_id, data);
+  while (true)
+    __asm__("hlt");
 }
 
 extern "C" void
@@ -43,23 +50,10 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   ::main_queue = new std::deque<Message>();
   InitializeLAPICTimer(*main_queue);
 
-  std::vector<uint64_t> task_b_stack(1024);
-  uint64_t task_b_stack_end = reinterpret_cast<uint64_t>(&task_b_stack[1024]);
-
-  memset(&task_b_ctx, 0, sizeof(task_b_ctx));
-  task_b_ctx.rip = reinterpret_cast<uint64_t>(TaskB);
-  task_b_ctx.rdi = 1;
-  task_b_ctx.rsi = 42;
-
-  task_b_ctx.cr3 = GetCR3();
-  task_b_ctx.rflags = 0x202;
-  task_b_ctx.cs = kKernelCS;
-  task_b_ctx.ss = kKernelSS;
-  task_b_ctx.rsp = (task_b_stack_end & ~0xflu) - 8;
-
-  *reinterpret_cast<uint32_t *>(&task_b_ctx.fxsave_area[24]) = 0x1f80;
-
   InitializeTask();
+  task_manager->NewTask().InitContext(TaskB, 0);
+  task_manager->NewTask().InitContext(TaskIdle, 0);
+  task_manager->NewTask().InitContext(TaskIdle, 0);
 
   while (1) {
     __asm__("cli");
