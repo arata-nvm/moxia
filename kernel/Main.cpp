@@ -26,6 +26,13 @@ extern "C" void KernelMainNewStack(const FrameBufferConfig &frame_buffer_config,
 
   __asm__("sti");
 
-  while (1)
+  while (1) {
+    __asm__("cli");
+    const auto tick = timer_manager->CurrentTick();
+    __asm__("sti");
+
+    printk("Timer interrupt: %d\r", tick);
+
     __asm__("hlt");
+  }
 }

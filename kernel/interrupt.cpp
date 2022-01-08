@@ -2,13 +2,14 @@
 #include "asmfunc.hpp"
 #include "printk.hpp"
 #include "segment.hpp"
+#include "timer.hpp"
 #include <array>
 
 std::array<InterruptDescriptor, 256> idt;
 
 namespace {
 __attribute__((interrupt)) void IntHandlerLAPICTimer(InterruptFrame *frame) {
-  printk("Timer interrupt\n");
+  LAPICTimerOnInterrupt();
   NotifyEndOfInterrupt();
 }
 } // namespace
