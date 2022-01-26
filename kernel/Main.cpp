@@ -28,12 +28,6 @@ void TaskB(uint64_t task_id, int64_t data) {
   }
 }
 
-void TaskIdle(uint64_t task_id, int64_t data) {
-  printk("TaskIdle: task_id=%lu, data=%lx\n", task_id, data);
-  while (true)
-    __asm__("hlt");
-}
-
 extern "C" void
 KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap &memory_map) {
   InitializeGraphics(frame_buffer_config);
