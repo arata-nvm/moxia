@@ -18,14 +18,20 @@ struct TaskContext {
 
 using TaskFunc = void(uint64_t, int64_t);
 
+class TaskManager;
+
 class Task {
 public:
   static const size_t kDefaultStackBytes = 4096;
+  static const unsigned int kDefaultLevel = 1;
+
   Task(uint64_t id);
   Task &InitContext(TaskFunc *, int64_t data);
   TaskContext &Context();
 
   uint64_t ID() const;
+  unsigned int Level() const;
+  bool Running() const;
   Task &Sleep();
   Task &Wakeup();
 
@@ -37,10 +43,25 @@ private:
   std::vector<uint64_t> stack_;
   alignas(16) TaskContext context_;
   std::deque<Message> msgs_;
+  unsigned int level_{kDefaultLevel};
+  bool running_{false};
+
+  Task &SetLevel(int level) {
+    level_ = level;
+    return *this;
+  }
+  Task &SetRunning(bool running) {
+    running_ = running;
+    return *this;
+  }
+
+  friend TaskManager;
 };
 
 class TaskManager {
 public:
+  static const int kMaxLevel = 3;
+
   TaskManager();
   Task &NewTask();
   void SwitchTask(bool current_sleep);
@@ -48,15 +69,19 @@ public:
 
   void Sleep(Task *task);
   Error Sleep(uint64_t id);
-  void Wakeup(Task *task);
-  Error Wakeup(uint64_t id);
+  void Wakeup(Task *task, int level = -1);
+  Error Wakeup(uint64_t id, int level = -1);
 
   Error SendMessage(uint64_t id, const Message &msg);
 
 private:
   std::vector<std::unique_ptr<Task>> tasks_{};
   uint64_t latest_id_{0};
-  std::deque<Task *> running_{};
+  std::array<std::deque<Task *>, kMaxLevel + 1> running_{};
+  int current_level_{kMaxLevel};
+  bool level_changed_{false};
+
+  void ChangeLevelRunning(Task *task, int level);
 };
 
 extern TaskManager *task_manager;
