@@ -1,9 +1,11 @@
 #pragma once
 
 #include "error.hpp"
+#include "message.hpp"
 #include <array>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <vector>
 
 struct TaskContext {
@@ -27,10 +29,14 @@ public:
   Task &Sleep();
   Task &Wakeup();
 
+  void SendMessage(const Message &msg);
+  std::optional<Message> ReceiveMessage();
+
 private:
   uint64_t id_;
   std::vector<uint64_t> stack_;
   alignas(16) TaskContext context_;
+  std::deque<Message> msgs_;
 };
 
 class TaskManager {
@@ -38,11 +44,14 @@ public:
   TaskManager();
   Task &NewTask();
   void SwitchTask(bool current_sleep);
+  Task &CurrentTask();
 
   void Sleep(Task *task);
   Error Sleep(uint64_t id);
   void Wakeup(Task *task);
   Error Wakeup(uint64_t id);
+
+  Error SendMessage(uint64_t id, const Message &msg);
 
 private:
   std::vector<std::unique_ptr<Task>> tasks_{};

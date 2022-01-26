@@ -15,7 +15,6 @@
 #include <string.h>
 
 alignas(16) uint8_t kernel_main_stack[1024 * 1024];
-std::deque<Message> *main_queue;
 
 uint64_t count_a, count_b;
 
@@ -47,14 +46,13 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   InitializeMemoryManager(memory_map);
   InitializeInterrupt();
 
-  ::main_queue = new std::deque<Message>();
-  InitializeLAPICTimer(*main_queue);
+  InitializeLAPICTimer();
+  timer_manager->AddTimer(Timer(100, 1));
 
   InitializeTask();
-  task_manager->NewTask().InitContext(TaskB, 0).Wakeup();
-  task_manager->NewTask().InitContext(TaskIdle, 1);
-  task_manager->NewTask().InitContext(TaskIdle, 2);
+  task_manager->NewTask().InitContext(TaskB, 2).Wakeup();
 
+  Task &main_task = task_manager->CurrentTask();
   while (1) {
     __asm__("cli");
     ++count_a;
@@ -62,21 +60,19 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
     __asm__("sti");
 
     __asm__("cli");
-    if (main_queue->empty()) {
-      __asm__("sti;"
-              "hlt");
+    auto msg = main_task.ReceiveMessage();
+    if (!msg) {
+      main_task.Sleep();
+      __asm__("sti");
       continue;
     }
-
-    Message msg = main_queue->front();
-    main_queue->pop_front();
     __asm__("sti");
 
-    switch (msg.type) {
+    switch (msg->type) {
     case Message::kTimerTimeout:
-      printk("Timer: timeout = %lu, value = %d\n", msg.arg.timer.timeout, msg.arg.timer.value);
-      if (msg.arg.timer.value > 0) {
-        timer_manager->AddTimer(Timer(msg.arg.timer.timeout + 100, msg.arg.timer.value));
+      printk("Timer: timeout = %lu, value = %d\n", msg->arg.timer.timeout, msg->arg.timer.value);
+      if (msg->arg.timer.value > 0) {
+        timer_manager->AddTimer(Timer(msg->arg.timer.timeout + 100, msg->arg.timer.value));
       }
       break;
     }
