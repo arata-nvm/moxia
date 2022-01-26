@@ -51,9 +51,9 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   InitializeLAPICTimer(*main_queue);
 
   InitializeTask();
-  task_manager->NewTask().InitContext(TaskB, 0);
-  task_manager->NewTask().InitContext(TaskIdle, 0);
-  task_manager->NewTask().InitContext(TaskIdle, 0);
+  task_manager->NewTask().InitContext(TaskB, 0).Wakeup();
+  task_manager->NewTask().InitContext(TaskIdle, 1);
+  task_manager->NewTask().InitContext(TaskIdle, 2);
 
   while (1) {
     __asm__("cli");
