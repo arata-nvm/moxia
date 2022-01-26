@@ -24,7 +24,7 @@ void TaskB(uint64_t task_id, int64_t data) {
   while (true) {
     __asm__("cli");
     ++count_b;
-    printk("TaskA: %010ull, TaskB: %010ull\r", count_a, count_b);
+    printk("TaskA: %010u, TaskB: %010u\r", count_a, count_b);
     __asm__("sti");
   }
 }
@@ -58,7 +58,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   while (1) {
     __asm__("cli");
     ++count_a;
-    printk("TaskA: %010ull, TaskB: %010ull\r", count_a, count_b);
+    printk("TaskA: %010u, TaskB: %010u\r", count_a, count_b);
     __asm__("sti");
 
     __asm__("cli");
