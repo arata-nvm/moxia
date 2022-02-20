@@ -44,18 +44,11 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   InitializeInterrupt();
 
   InitializeLAPICTimer();
-  // timer_manager->AddTimer(Timer(100, 1));
 
   InitializeTask();
-  task_manager->NewTask().InitContext(TaskB, 2).Wakeup();
 
   Task &main_task = task_manager->CurrentTask();
   while (1) {
-    __asm__("cli");
-    ++count_a;
-    printk("TaskA: %010u, TaskB: %010u\n", count_a, count_b);
-    __asm__("sti");
-
     __asm__("cli");
     auto msg = main_task.ReceiveMessage();
     if (!msg) {
