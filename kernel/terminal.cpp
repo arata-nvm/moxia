@@ -4,7 +4,29 @@
 #include "keyboard.hpp"
 #include "printk.hpp"
 #include "task.hpp"
+#include <string.h>
 #include <string>
+
+void ExecuteFile(const fat::DirectoryEntry &file_entry) {
+  uint32_t cluster = file_entry.FirstCluster();
+  uint32_t remain_bytes = file_entry.file_size;
+
+  std::vector<uint8_t> file_buf(remain_bytes);
+  uint8_t *p = &file_buf[0];
+
+  while (cluster != 0 && cluster != fat::kEndOfClusterchain) {
+    const uint32_t copy_bytes = fat::bytes_per_cluster < remain_bytes ? fat::bytes_per_cluster : remain_bytes;
+    memcpy(p, fat::GetSectorByCluster<uint8_t>(cluster), copy_bytes);
+
+    remain_bytes -= copy_bytes;
+    p += copy_bytes;
+    cluster = fat::NextCluster(cluster);
+  }
+
+  using Func = void();
+  Func *f = reinterpret_cast<Func *>(&file_buf[0]);
+  f();
+}
 
 void ExecuteCommand(std::string line) {
   size_t i = line.find(' ');
@@ -63,7 +85,12 @@ void ExecuteCommand(std::string line) {
       }
     }
   } else {
-    printk("command not found: %s\n", cmd.c_str());
+    auto file_entry = fat::FindFile(cmd.c_str());
+    if (!file_entry) {
+      printk("command not found: %s\n", cmd.c_str());
+    } else {
+      ExecuteFile(*file_entry);
+    }
   }
 }
 
