@@ -2,7 +2,7 @@ SHELL=/bin/bash
 
 .PHONY: run
 run: build
-	~/osbook/devenv/run_qemu.sh Loader.efi kernel.elf
+	~/osbook/devenv/run_mikanos.sh
 
 .PHONY: debug
 debug: QEMU_OPTS += -s -S -no-reboot
