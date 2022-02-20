@@ -42,6 +42,26 @@ void ExecuteCommand(std::string line) {
       }
       printk("%s", s);
     }
+  } else if (cmd == "cat") {
+    fat::DirectoryEntry *file_entry = fat::FindFile(arg.c_str());
+    if (!file_entry) {
+      printk("no such file: %s\n", arg.c_str());
+    } else {
+      uint32_t cluster = file_entry->FirstCluster();
+      uint32_t remain_bytes = file_entry->file_size;
+
+      while (cluster != 0 && cluster != fat::kEndOfClusterchain) {
+        char *p = fat::GetSectorByCluster<char>(cluster);
+
+        int i = 0;
+        for (; i < fat::bytes_per_cluster && i < remain_bytes; ++i) {
+          printk("%c", *p);
+          p++;
+        }
+        remain_bytes -= i;
+        cluster = fat::NextCluster(cluster);
+      }
+    }
   } else {
     printk("command not found: %s\n", cmd.c_str());
   }
