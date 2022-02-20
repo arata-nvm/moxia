@@ -1,6 +1,19 @@
 bits 64
 section .text
 
+global Inb
+Inb:
+  mov dx, di
+  in al, dx
+  ret
+
+global Outb
+Outb:
+  mov dx, di
+  mov al, sil
+  out dx, al
+  ret
+
 global LoadIDT
 LoadIDT:
   push rbp

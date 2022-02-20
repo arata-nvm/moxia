@@ -3,6 +3,8 @@
 #include <stdint.h>
 
 extern "C" {
+uint8_t Inb(uint16_t port);
+void Outb(uint16_t port, uint8_t value);
 void LoadIDT(uint16_t limit, uint64_t offset);
 void LoadGDT(uint16_t limit, uint64_t offset);
 void SetDSAll(uint16_t value);
