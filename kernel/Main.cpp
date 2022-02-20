@@ -30,6 +30,29 @@ void TaskB(uint64_t task_id, int64_t data) {
   }
 }
 
+void TaskTerminal(uint64_t task_id, int64_t data) {
+  __asm__("cli");
+  Task &task = task_manager->CurrentTask();
+  __asm__("sti");
+
+  while (true) {
+    __asm__("cli");
+    auto msg = task.ReceiveMessage();
+    if (!msg) {
+      task.Sleep();
+      __asm__("sti");
+      continue;
+    }
+    __asm__("sti");
+
+    switch (msg->type) {
+    case Message::kKeyboardPush:
+      printk("%c", msg->arg.keyboard.keycode & kKeyCharMask);
+      break;
+    }
+  }
+}
+
 extern "C" void
 KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap &memory_map) {
   InitializeGraphics(frame_buffer_config);
@@ -46,6 +69,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   InitializeLAPICTimer();
 
   InitializeTask();
+  Task &terminal_task = task_manager->NewTask().InitContext(TaskTerminal, 0).Wakeup();
 
   Task &main_task = task_manager->CurrentTask();
   while (1) {
@@ -66,7 +90,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
       }
       break;
     case Message::kKeyboardPush:
-      printk("Keyboard: keycode = %x, char = %c\n", msg->arg.keyboard.keycode, msg->arg.keyboard.keycode & kKeyCharMask);
+      task_manager->SendMessage(terminal_task.ID(), msg.value());
       break;
     }
   }
