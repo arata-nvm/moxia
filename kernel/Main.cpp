@@ -31,7 +31,7 @@ void TaskB(uint64_t task_id, int64_t data) {
 }
 
 extern "C" void
-KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap &memory_map) {
+KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap &memory_map, void *volume_image) {
   InitializeGraphics(frame_buffer_config);
   InitializeConsole();
 
