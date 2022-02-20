@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 
 const uint16_t kKeyCharMask = 0x00ff;
 const uint16_t kKeyShiftMask = 0x0100;
