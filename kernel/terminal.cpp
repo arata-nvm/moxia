@@ -1,4 +1,5 @@
 #include "terminal.hpp"
+#include "console.hpp"
 #include "keyboard.hpp"
 #include "printk.hpp"
 #include "task.hpp"
@@ -16,6 +17,8 @@ void ExecuteCommand(std::string line) {
 
   if (cmd == "echo") {
     printk("%s\n", arg.c_str());
+  } else if (cmd == "clear") {
+    console->Clear();
   } else {
     printk("command not found: %s\n", cmd.c_str());
   }
