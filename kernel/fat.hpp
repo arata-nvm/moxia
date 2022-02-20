@@ -3,6 +3,8 @@
 
 namespace fat {
 
+static const uint32_t kEndOfClusterchain = 0x0ffffffflu;
+
 struct BPB {
   uint8_t jump_boot[3];
   char oem_name[8];
@@ -63,6 +65,7 @@ struct DirectoryEntry {
 } __attribute__((packed));
 
 extern BPB *boot_volume_image;
+extern uint32_t bytes_per_cluster;
 
 void Initialize(void *volume_image);
 
@@ -74,5 +77,11 @@ T *GetSectorByCluster(unsigned long cluster) {
 }
 
 void ReadName(const DirectoryEntry &entry, char *base, char *ext);
+
+uint32_t NextCluster(uint32_t cluster);
+
+DirectoryEntry *FindFile(const char *name, uint32_t directory_cluster = 0);
+
+bool NameIsEqual(const DirectoryEntry &entry, const char *name);
 
 } // namespace fat
