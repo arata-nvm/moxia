@@ -1,5 +1,6 @@
 #include "terminal.hpp"
 #include "console.hpp"
+#include "elf.hpp"
 #include "fat.hpp"
 #include "keyboard.hpp"
 #include "printk.hpp"
@@ -7,7 +8,38 @@
 #include <string.h>
 #include <string>
 
-void ExecuteFile(const fat::DirectoryEntry &file_entry) {
+namespace {
+
+std::vector<char *> MakeArgVector(char *cmd, char *arg) {
+  std::vector<char *> argv;
+  argv.push_back(cmd);
+
+  char *p = arg;
+  while (true) {
+    while (isspace(p[0])) {
+      ++p;
+    }
+    if (p[0] == 0) {
+      break;
+    }
+    argv.push_back(p);
+
+    while (p[0] != 0 && !isspace(p[0])) {
+      ++p;
+    }
+    if (p[0] == 0) {
+      break;
+    }
+    p[0] = 0;
+    ++p;
+  }
+
+  return argv;
+}
+
+} // namespace
+
+void ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *arg) {
   uint32_t cluster = file_entry.FirstCluster();
   uint32_t remain_bytes = file_entry.file_size;
 
@@ -23,26 +55,47 @@ void ExecuteFile(const fat::DirectoryEntry &file_entry) {
     cluster = fat::NextCluster(cluster);
   }
 
-  using Func = void();
-  Func *f = reinterpret_cast<Func *>(&file_buf[0]);
-  f();
+  Elf64_Ehdr *efl_header = reinterpret_cast<Elf64_Ehdr *>(&file_buf[0]);
+  if (memcmp(efl_header->e_ident, "\x7f"
+                                  "ELF",
+             4) != 0) {
+    using Func = void();
+    Func *f = reinterpret_cast<Func *>(&file_buf[0]);
+    f();
+    return;
+  }
+
+  std::vector<char *> argv = MakeArgVector(cmd, arg);
+
+  uintptr_t entry_addr = efl_header->e_entry;
+  entry_addr += reinterpret_cast<uintptr_t>(&file_buf[0]);
+
+  using Func = int(int, char **);
+  Func *f = reinterpret_cast<Func *>(entry_addr);
+  int ret = f(argv.size(), &argv[0]);
+
+  printk("app exited. ret = %d\n", ret);
 }
 
 void ExecuteCommand(std::string line) {
   size_t i = line.find(' ');
-  std::string cmd = line.substr(0, i);
-  std::string arg;
-  if (i != std::string::npos) {
-    arg = line.substr(i + 1);
+  char *cmd, *arg;
+  if (i == std::string::npos) {
+    cmd = &line[0];
+    arg = &line[line.size()];
   } else {
-    arg = "";
+    line[i] = 0;
+    cmd = &line[0];
+    arg = &line[i + 1];
   }
 
-  if (cmd == "echo") {
-    printk("%s\n", arg.c_str());
-  } else if (cmd == "clear") {
+  printk("%s, %s\n", cmd, arg);
+
+  if (!strcmp(cmd, "echo")) {
+    printk("%s\n", arg);
+  } else if (!strcmp(cmd, "clear")) {
     console->Clear();
-  } else if (cmd == "ls") {
+  } else if (!strcmp(cmd, "ls")) {
     fat::DirectoryEntry *root_dir_entries = fat::GetSectorByCluster<fat::DirectoryEntry>(fat::boot_volume_image->root_cluster);
     int entries_per_cluster = fat::boot_volume_image->bytes_per_sector / sizeof(fat::DirectoryEntry) * fat::boot_volume_image->sectors_per_cluster;
     char base[9], ext[4];
@@ -64,10 +117,10 @@ void ExecuteCommand(std::string line) {
       }
       printk("%s", s);
     }
-  } else if (cmd == "cat") {
-    fat::DirectoryEntry *file_entry = fat::FindFile(arg.c_str());
+  } else if (!strcmp(cmd, "cat")) {
+    fat::DirectoryEntry *file_entry = fat::FindFile(arg);
     if (!file_entry) {
-      printk("no such file: %s\n", arg.c_str());
+      printk("no such file: %s\n", arg);
     } else {
       uint32_t cluster = file_entry->FirstCluster();
       uint32_t remain_bytes = file_entry->file_size;
@@ -85,11 +138,11 @@ void ExecuteCommand(std::string line) {
       }
     }
   } else {
-    auto file_entry = fat::FindFile(cmd.c_str());
+    auto file_entry = fat::FindFile(cmd);
     if (!file_entry) {
-      printk("command not found: %s\n", cmd.c_str());
+      printk("command not found: %s\n", cmd);
     } else {
-      ExecuteFile(*file_entry);
+      ExecuteFile(*file_entry, cmd, arg);
     }
   }
 }
