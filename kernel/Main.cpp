@@ -53,7 +53,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   while (1) {
     __asm__("cli");
     ++count_a;
-    printk("TaskA: %010u, TaskB: %010u\r", count_a, count_b);
+    printk("TaskA: %010u, TaskB: %010u\n", count_a, count_b);
     __asm__("sti");
 
     __asm__("cli");
