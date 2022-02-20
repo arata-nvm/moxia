@@ -72,6 +72,9 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
         timer_manager->AddTimer(Timer(msg->arg.timer.timeout + 100, msg->arg.timer.value));
       }
       break;
+    case Message::kKeyboardPush:
+      printk("Keyboard: keycode = %x, char = %c\n", msg->arg.keyboard.keycode, msg->arg.keyboard.keycode & kKeyCharMask);
+      break;
     }
   }
 }

@@ -3,6 +3,7 @@
 struct Message {
   enum Type {
     kTimerTimeout,
+    kKeyboardPush,
   } type;
 
   union {
@@ -10,5 +11,8 @@ struct Message {
       unsigned long timeout;
       int value;
     } timer;
+    struct {
+      uint16_t keycode;
+    } keyboard;
   } arg;
 };
