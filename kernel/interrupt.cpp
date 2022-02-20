@@ -1,5 +1,7 @@
 #include "interrupt.hpp"
 #include "asmfunc.hpp"
+#include "keyboard.hpp"
+#include "pic.hpp"
 #include "printk.hpp"
 #include "segment.hpp"
 #include "timer.hpp"
@@ -8,6 +10,10 @@
 std::array<InterruptDescriptor, 256> idt;
 
 namespace {
+__attribute__((interrupt)) void IntHandlerKeyboard(InterruptFrame *frame) {
+  KeyboardOnInterrupt();
+}
+
 __attribute__((interrupt)) void IntHandlerLAPICTimer(InterruptFrame *frame) {
   LAPICTimerOnInterrupt();
 }
@@ -36,6 +42,10 @@ void NotifyEndOfInterrupt() {
 }
 
 void InitializeInterrupt() {
+  DisablePIC();
+  PICClearMask(InterruptVector::kKeyboard);
+
+  SetIDTEntry(idt[InterruptVector::kKeyboard], MakeIDTAttr(DescriptorType::kInterruptGate, 0), reinterpret_cast<uint64_t>(IntHandlerKeyboard), kKernelCS);
   SetIDTEntry(idt[InterruptVector::kLAPICTimer], MakeIDTAttr(DescriptorType::kInterruptGate, 0), reinterpret_cast<uint64_t>(IntHandlerLAPICTimer), kKernelCS);
   LoadIDT(sizeof(idt) - 1, reinterpret_cast<uintptr_t>(&idt[0]));
 }

@@ -2,6 +2,7 @@
 #include "console.hpp"
 #include "graphics.hpp"
 #include "interrupt.hpp"
+#include "keyboard.hpp"
 #include "memory_manager.hpp"
 #include "memory_map.hpp"
 #include "message.hpp"

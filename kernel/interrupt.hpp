@@ -28,6 +28,7 @@ void SetIDTEntry(InterruptDescriptor &desc, InterruptDescriptorAttribute attr, u
 class InterruptVector {
 public:
   enum Number {
+    kKeyboard = 0x21,
     kLAPICTimer = 0x41,
   };
 };
