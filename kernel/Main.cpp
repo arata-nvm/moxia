@@ -1,5 +1,6 @@
 #include "asmfunc.hpp"
 #include "console.hpp"
+#include "fat.hpp"
 #include "graphics.hpp"
 #include "interrupt.hpp"
 #include "keyboard.hpp"
@@ -42,6 +43,8 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   InitializeMemoryManager(memory_map);
   InitializePIC();
   InitializeInterrupt();
+
+  fat::Initialize(volume_image);
 
   InitializeLAPICTimer();
 
