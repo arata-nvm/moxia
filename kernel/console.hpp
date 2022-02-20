@@ -8,6 +8,7 @@ public:
 
   Console(PixelWriter &writer, const PixelColor &fg_color, const PixelColor &bg_color);
   void PutString(const char *s);
+  void Clear();
 
 private:
   void NewLine();

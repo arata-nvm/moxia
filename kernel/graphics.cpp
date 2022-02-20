@@ -1,6 +1,14 @@
 #include "graphics.hpp"
 #include <new>
 
+void PixelWriter::Clear(const PixelColor &c) {
+  for (int y = 0; y < config_.vertical_resolution; y++) {
+    for (int x = 0; x < config_.horizontal_resolution; x++) {
+      this->Write(x, y, c);
+    }
+  }
+}
+
 void RGBResv8BitPixelWriter::Write(int x, int y, const PixelColor &c) {
   auto p = PixelAt(x, y);
   p[0] = c.r;

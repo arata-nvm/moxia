@@ -11,6 +11,7 @@ public:
   PixelWriter(const FrameBufferConfig &config) : config_{config} {}
   virtual ~PixelWriter() = default;
   virtual void Write(int x, int y, const PixelColor &c) = 0;
+  void Clear(const PixelColor &c);
 
 protected:
   uint8_t *PixelAt(int x, int y) {

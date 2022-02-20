@@ -22,6 +22,13 @@ void Console::PutString(const char *s) {
   }
 }
 
+void Console::Clear() {
+  writer_.Clear(bg_color_);
+  cursor_column_ = 0;
+  cursor_row_ = 0;
+  memset(buffer_, 0, (kColumns + 1) * kRows);
+}
+
 void Console::NewLine() {
   cursor_column_ = 0;
   if (cursor_row_ < kRows - 1) {
