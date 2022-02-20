@@ -11,10 +11,10 @@
 #include "printk.hpp"
 #include "segment.hpp"
 #include "task.hpp"
+#include "terminal.hpp"
 #include "timer.hpp"
 #include <cstdint>
 #include <deque>
-#include <string.h>
 
 alignas(16) uint8_t kernel_main_stack[1024 * 1024];
 
@@ -27,29 +27,6 @@ void TaskB(uint64_t task_id, int64_t data) {
     ++count_b;
     printk("TaskA: %010u, TaskB: %010u\r", count_a, count_b);
     __asm__("sti");
-  }
-}
-
-void TaskTerminal(uint64_t task_id, int64_t data) {
-  __asm__("cli");
-  Task &task = task_manager->CurrentTask();
-  __asm__("sti");
-
-  while (true) {
-    __asm__("cli");
-    auto msg = task.ReceiveMessage();
-    if (!msg) {
-      task.Sleep();
-      __asm__("sti");
-      continue;
-    }
-    __asm__("sti");
-
-    switch (msg->type) {
-    case Message::kKeyboardPush:
-      printk("%c", msg->arg.keyboard.keycode & kKeyCharMask);
-      break;
-    }
   }
 }
 
