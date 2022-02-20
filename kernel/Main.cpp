@@ -6,6 +6,7 @@
 #include "memory_map.hpp"
 #include "message.hpp"
 #include "paging.hpp"
+#include "pic.hpp"
 #include "printk.hpp"
 #include "segment.hpp"
 #include "task.hpp"
@@ -38,10 +39,11 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   InitializeSegmentation();
   InitializePaging();
   InitializeMemoryManager(memory_map);
+  InitializePIC();
   InitializeInterrupt();
 
   InitializeLAPICTimer();
-  timer_manager->AddTimer(Timer(100, 1));
+  // timer_manager->AddTimer(Timer(100, 1));
 
   InitializeTask();
   task_manager->NewTask().InitContext(TaskB, 2).Wakeup();

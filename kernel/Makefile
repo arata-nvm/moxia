@@ -1,5 +1,5 @@
 TARGET = kernel.elf
-OBJS = main.o fonts.o graphics.o hankaku.o console.o asmfunc.o paging.o segment.o memory_manager.o newlib_support.o libcxx_support.o printk.o interrupt.o timer.o task.o
+OBJS = main.o fonts.o graphics.o hankaku.o console.o asmfunc.o paging.o segment.o memory_manager.o newlib_support.o libcxx_support.o printk.o interrupt.o timer.o task.o pic.o
 
 CFLAGS += -O2 -Wall -g --target=x86_64-elf -ffreestanding -mno-red-zone
 CXXFLAGS += -O2 -Wall -g --target=x86_64-elf -ffreestanding -mno-red-zone -fno-exceptions -fno-rtti -std=c++17
