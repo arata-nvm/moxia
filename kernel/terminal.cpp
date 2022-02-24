@@ -89,8 +89,6 @@ void ExecuteCommand(std::string line) {
     arg = &line[i + 1];
   }
 
-  printk("%s, %s\n", cmd, arg);
-
   if (!strcmp(cmd, "echo")) {
     printk("%s\n", arg);
   } else if (!strcmp(cmd, "clear")) {
