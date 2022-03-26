@@ -50,11 +50,12 @@ WithError<int> MakeArgVector(char *cmd, char *first_arg, char **argv, int argv_l
     while (p[0] != 0 && !isspace(p[0])) {
       ++p;
     }
+    const bool is_end = p[0] == 0;
     p[0] = 0;
     if (auto err = push_to_argv(arg)) {
       return {argc, err};
     }
-    if (p[0] == 0) {
+    if (is_end) {
       break;
     }
     ++p;
