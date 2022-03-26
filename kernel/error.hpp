@@ -9,6 +9,7 @@ public:
     kNoEnoughMemory,
     kNoSuchTask,
     kInvalidFormat,
+    kFull,
     kLastOfCode,
   };
 
@@ -18,6 +19,7 @@ private:
       "kNoEnoughEmpty",
       "kNoSuchTask",
       "kInvalidFormat",
+      "kFull",
   };
   static_assert(Error::Code::kLastOfCode == code_names_.size());
 

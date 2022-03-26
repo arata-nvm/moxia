@@ -29,6 +29,8 @@ void SetDataSegment(SegmentDescriptor &desc, DescriptorType type, uint32_t descr
 const uint16_t kKernelDS = 0;
 const uint16_t kKernelCS = 1 << 3;
 const uint16_t kKernelSS = 2 << 3;
+const uint16_t kUserCS = 3 << 3;
+const uint16_t kUserSS = 4 << 3;
 
 void SetupSegments();
 

@@ -144,6 +144,16 @@ SwitchContext:
 
   o64 iret
 
+global CallApp
+CallApp:
+  push rbp
+  mov rbp, rsp
+  push rcx ; SS
+  push r9  ; RSP
+  push rdx ; CS
+  push r8  ; RIP
+  o64 retf
+
 extern kernel_main_stack
 extern KernelMainNewStack
 

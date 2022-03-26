@@ -7,17 +7,37 @@
 #include "memory_manager.hpp"
 #include "paging.hpp"
 #include "printk.hpp"
+#include "segment.hpp"
 #include "task.hpp"
 #include <string.h>
 #include <string>
 
 namespace {
 
-std::vector<char *> MakeArgVector(char *cmd, char *arg) {
-  std::vector<char *> argv;
-  argv.push_back(cmd);
+WithError<int> MakeArgVector(char *cmd, char *first_arg, char **argv, int argv_len, char *argbuf, int argbuf_len) {
+  int argc = 0;
+  int argbuf_index = 0;
 
-  char *p = arg;
+  auto push_to_argv = [&](const char *s) {
+    if (argc >= argv_len || argbuf_index >= argbuf_len) {
+      return MAKE_ERROR(Error::kFull);
+    }
+
+    argv[argc] = &argbuf[argbuf_index];
+    ++argc;
+    strcpy(&argbuf[argbuf_index], s);
+    argbuf_index += strlen(s) + 1;
+    return MAKE_ERROR(Error::kSuccess);
+  };
+
+  if (auto err = push_to_argv(cmd)) {
+    return {argc, err};
+  }
+  if (!first_arg) {
+    return {argc, MAKE_ERROR(Error::kSuccess)};
+  }
+
+  char *p = first_arg;
   while (true) {
     while (isspace(p[0])) {
       ++p;
@@ -25,19 +45,22 @@ std::vector<char *> MakeArgVector(char *cmd, char *arg) {
     if (p[0] == 0) {
       break;
     }
-    argv.push_back(p);
+    const char *arg = p;
 
     while (p[0] != 0 && !isspace(p[0])) {
       ++p;
     }
+    p[0] = 0;
+    if (auto err = push_to_argv(arg)) {
+      return {argc, err};
+    }
     if (p[0] == 0) {
       break;
     }
-    p[0] = 0;
     ++p;
   }
 
-  return argv;
+  return {argc, MAKE_ERROR(Error::kSuccess)};
 }
 
 Elf64_Phdr *GetProgramHeader(Elf64_Ehdr *ehdr) {
@@ -90,6 +113,7 @@ WithError<size_t> SetupPageMap(PageMapEntry *page_map, int page_map_level, Linea
       return {num_4kpages, err};
     }
     page_map[entry_index].bits.writable = 1;
+    page_map[entry_index].bits.user = 1;
 
     if (page_map_level == 1) {
       --num_4kpages;
@@ -197,7 +221,7 @@ Error LoadELF(Elf64_Ehdr *ehdr) {
 
 } // namespace
 
-Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *arg) {
+Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_arg) {
   std::vector<uint8_t> file_buf(file_entry.file_size);
   fat::LoadFile(&file_buf[0], file_buf.size(), file_entry);
 
@@ -211,17 +235,32 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *arg) {
     return MAKE_ERROR(Error::kSuccess);
   }
 
-  std::vector<char *> argv = MakeArgVector(cmd, arg);
   if (auto err = LoadELF(efl_header)) {
     return err;
   }
 
-  auto entry_addr = efl_header->e_entry;
-  using Func = int(int, char **);
-  auto f = reinterpret_cast<Func *>(entry_addr);
-  auto ret = f(argv.size(), &argv[0]);
+  LinearAddress4Level args_frame_addr{0xffff'ffff'ffff'f000};
+  if (auto err = SetupPageMaps(args_frame_addr, 1)) {
+    return err;
+  }
+  auto argv = reinterpret_cast<char **>(args_frame_addr.value);
+  int argv_len = 32;
+  auto argbuf = reinterpret_cast<char *>(args_frame_addr.value + sizeof(char **) * argv_len);
+  int argbuf_len = 4096 - sizeof(char **) * argv_len;
+  auto argc = MakeArgVector(cmd, first_arg, argv, argv_len, argbuf, argbuf_len);
+  if (argc.error) {
+    return argc.error;
+  }
 
-  printk("app exited. ret = %d\n", ret);
+  LinearAddress4Level stack_frame_addr{0xffff'ffff'ffff'e000};
+  if (auto err = SetupPageMaps(stack_frame_addr, 1)) {
+    return err;
+  }
+
+  auto entry_addr = efl_header->e_entry;
+  CallApp(argc.value, argv, kUserCS | 3, kUserSS | 3, entry_addr, stack_frame_addr.value + 4096 - 8);
+
+  //printk("app exited. ret = %d\n", ret);
 
   const auto addr_first = GetFirstLoadAddress(efl_header);
   if (auto err = CleanPageMaps(LinearAddress4Level{addr_first})) {
