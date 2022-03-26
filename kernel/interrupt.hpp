@@ -2,6 +2,8 @@
 #include "x86_descriptor.hpp"
 #include <stdint.h>
 
+const int kISTForTimer = 1;
+
 union InterruptDescriptorAttribute {
   uint16_t data;
   struct {

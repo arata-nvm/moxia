@@ -85,7 +85,7 @@ void InitializeInterrupt() {
   PICClearMask(InterruptVector::kKeyboard);
 
   auto set_idt_entry = [](int irq, auto handler) {
-    SetIDTEntry(idt[irq], MakeIDTAttr(DescriptorType::kInterruptGate, 0), reinterpret_cast<uint64_t>(handler), kKernelCS);
+    SetIDTEntry(idt[irq], MakeIDTAttr(DescriptorType::kInterruptGate, 0, true, kISTForTimer), reinterpret_cast<uint64_t>(handler), kKernelCS);
   };
 
   set_idt_entry(InterruptVector::kKeyboard, IntHandlerKeyboard);

@@ -1,5 +1,6 @@
 #include "segment.hpp"
 #include "asmfunc.hpp"
+#include "interrupt.hpp"
 #include "memory_manager.hpp"
 #include "printk.hpp"
 #include <array>
@@ -52,17 +53,23 @@ void SetupSegments() {
   LoadGDT(sizeof(gdt) - 1, reinterpret_cast<uintptr_t>(&gdt[0]));
 }
 
-void InitializeTSS() {
-  const int kRSP0Frames = 8;
-  auto [stack0, err] = memory_manager->Allocate(kRSP0Frames);
+void SetTSS(int index, uint64_t value) {
+  tss[index] = value & 0xffffffff;
+  tss[index + 1] = value >> 32;
+}
+
+uint64_t AllocateStackArea(int num_4kframes) {
+  auto [stack, err] = memory_manager->Allocate(num_4kframes);
   if (err) {
     printk("failed to allocate rsp0: %s\n", err.Name());
     exit(1);
   }
+  return reinterpret_cast<uint64_t>(stack.Frame()) + num_4kframes * kBytesPerFrame;
+}
 
-  uint64_t rsp0 = reinterpret_cast<uint64_t>(stack0.Frame()) + kRSP0Frames * kBytesPerFrame;
-  tss[1] = rsp0 & 0xffffffff;
-  tss[2] = rsp0 >> 32;
+void InitializeTSS() {
+  SetTSS(1, AllocateStackArea(8));
+  SetTSS(7 + 2 * kISTForTimer, AllocateStackArea(8));
 
   uint64_t tss_addr = reinterpret_cast<uint64_t>(&tss[0]);
   SetSystemSegment(gdt[5], DescriptorType::kTSSAvailable, 0, tss_addr & 0xffffffff, sizeof(tss) - 1);
