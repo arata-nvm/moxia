@@ -11,6 +11,7 @@
 #include "pic.hpp"
 #include "printk.hpp"
 #include "segment.hpp"
+#include "syscall.hpp"
 #include "task.hpp"
 #include "terminal.hpp"
 #include "timer.hpp"
@@ -48,6 +49,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   fat::Initialize(volume_image);
 
   InitializeLAPICTimer();
+  InitializeSyscall();
 
   InitializeTask();
   Task &terminal_task = task_manager->NewTask().InitContext(TaskTerminal, 0).Wakeup();
