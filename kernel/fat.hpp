@@ -1,4 +1,5 @@
 #pragma once
+#include <stddef.h>
 #include <stdint.h>
 
 namespace fat {
@@ -79,6 +80,8 @@ T *GetSectorByCluster(unsigned long cluster) {
 void ReadName(const DirectoryEntry &entry, char *base, char *ext);
 
 uint32_t NextCluster(uint32_t cluster);
+
+size_t LoadFile(void *buf, size_t len, const DirectoryEntry &entry);
 
 DirectoryEntry *FindFile(const char *name, uint32_t directory_cluster = 0);
 
