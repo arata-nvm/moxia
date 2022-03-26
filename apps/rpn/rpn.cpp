@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 
@@ -15,6 +16,8 @@ void Push(long value) {
   stack[stack_ptr] = value;
 }
 
+extern "C" int64_t SyscallLogString(const char *);
+
 extern "C" int main(int argc, char **argv) {
   stack_ptr = -1;
 
@@ -23,18 +26,22 @@ extern "C" int main(int argc, char **argv) {
       long b = Pop();
       long a = Pop();
       Push(a + b);
+      SyscallLogString("+");
     } else if (strcmp(argv[i], "-") == 0) {
       long b = Pop();
       long a = Pop();
       Push(a - b);
+      SyscallLogString("-");
     } else {
       long a = atol(argv[i]);
       Push(a);
+      SyscallLogString("#");
     }
   }
   if (stack_ptr < 0) {
     return 0;
   }
+  SyscallLogString("\nend\n");
   while (1)
     ;
   //return static_cast<int>(Pop());
