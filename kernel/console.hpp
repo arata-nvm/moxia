@@ -7,6 +7,7 @@ public:
   static const int kRows = 25, kColumns = 80;
 
   Console(PixelWriter &writer, const PixelColor &fg_color, const PixelColor &bg_color);
+  void PutChar(char c);
   void PutString(const char *s);
   void Clear();
 
