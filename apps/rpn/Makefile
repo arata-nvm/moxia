@@ -1,5 +1,5 @@
 TARGET = rpn
-OBJS = rpn.o syscall.o
+OBJS = rpn.o syscall.o newlib_support.o
 
 SHELL=/bin/bash
 
@@ -15,9 +15,13 @@ rpn: $(OBJS) Makefile
 	source ~/osbook/devenv/buildenv.sh \
 	&& ld.lld $(LDFLAGS) -o rpn $(OBJS) -lc -lc++ -lc++abi
 
+%.o: %.c Makefile
+	source ~/osbook/devenv/buildenv.sh \
+	&& clang $(CPPFLAGS) $(CFLAGS) -c $<
+
 %.o: %.cpp Makefile
 	source ~/osbook/devenv/buildenv.sh \
-	&& clang++ $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	&& clang++ $(CPPFLAGS) $(CXXFLAGS) -c $<
 
 %.o: %.asm Makefile
 	nasm -f elf64 -o $@ $<
