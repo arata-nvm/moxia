@@ -1,3 +1,5 @@
+OBJS += ../syscall.o ../newlib_support.o
+
 CFLAGS += -O2 -Wall -g --target=x86_64-elf -ffreestanding
 CXXFLAGS += -O2 -Wall -g --target=x86_64-elf -ffreestanding -mcmodel=large \
 							-fno-exceptions -fno-rtti -std=c++17
@@ -10,10 +12,10 @@ $(TARGET): $(OBJS) Makefile
 	ld.lld $(LDFLAGS) -o $(TARGET) $(OBJS) -lc -lc++ -lc++abi
 
 %.o: %.c Makefile
-	clang $(CPPFLAGS) $(CFLAGS) -c $<
+	clang $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 %.o: %.cpp Makefile
-	clang++ $(CPPFLAGS) $(CXXFLAGS) -c $<
+	clang++ $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 %.o: %.asm Makefile
 	nasm -f elf64 -o $@ $<

@@ -1,3 +1,4 @@
+#include "../syscall.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -16,8 +17,6 @@ void Push(long value) {
   ++stack_ptr;
   stack[stack_ptr] = value;
 }
-
-extern "C" void SyscallExit(int);
 
 extern "C" void main(int argc, char **argv) {
   stack_ptr = -1;
@@ -43,5 +42,5 @@ extern "C" void main(int argc, char **argv) {
   }
 
   printf("%ld\n", result);
-  SyscallExit(static_cast<int>(result));
+  exit(0);
 }
