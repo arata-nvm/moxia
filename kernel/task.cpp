@@ -55,6 +55,10 @@ unsigned int Task::Level() const {
   return level_;
 }
 
+uint64_t &Task::OSStackPointer() {
+  return os_stack_ptr_;
+}
+
 bool Task::Running() const {
   return running_;
 }

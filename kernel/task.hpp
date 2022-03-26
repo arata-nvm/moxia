@@ -31,6 +31,7 @@ public:
 
   uint64_t ID() const;
   unsigned int Level() const;
+  uint64_t &OSStackPointer();
   bool Running() const;
   Task &Sleep();
   Task &Wakeup();
@@ -45,6 +46,7 @@ private:
   std::deque<Message> msgs_;
   unsigned int level_{kDefaultLevel};
   bool running_{false};
+  uint64_t os_stack_ptr_;
 
   Task &SetLevel(int level) {
     level_ = level;

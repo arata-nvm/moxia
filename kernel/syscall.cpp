@@ -3,6 +3,7 @@
 #include "msr.hpp"
 #include "printk.hpp"
 #include "segment.hpp"
+#include "task.hpp"
 #include <array>
 #include <cerrno>
 #include <stdint.h>
@@ -38,13 +39,21 @@ SYSCALL(write) {
   return {0, EBADF};
 }
 
+SYSCALL(exit) {
+  __asm__("cli");
+  auto &task = task_manager->CurrentTask();
+  __asm__("sti");
+  return {task.OSStackPointer(), static_cast<int>(arg1)};
+}
+
 } // namespace syscall
 
 using SyscallFuncType = syscall::Result(uint64_t, uint64_t, uint64_t,
                                         uint64_t, uint64_t, uint64_t);
 
-extern "C" std::array<SyscallFuncType *, 1> syscall_table{
+extern "C" std::array<SyscallFuncType *, 2> syscall_table{
     /* 0x00 */ syscall::write,
+    /* 0x01 */ syscall::exit,
 };
 
 void InitializeSyscall() {

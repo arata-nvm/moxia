@@ -17,9 +17,9 @@ void Push(long value) {
   stack[stack_ptr] = value;
 }
 
-extern "C" ssize_t write(int fd, const void *buf, size_t count);
+extern "C" void SyscallExit(int);
 
-extern "C" int main(int argc, char **argv) {
+extern "C" void main(int argc, char **argv) {
   stack_ptr = -1;
 
   for (int i = 1; i < argc; ++i) {
@@ -43,8 +43,5 @@ extern "C" int main(int argc, char **argv) {
   }
 
   printf("%ld\n", result);
-  while (1)
-    ;
-
-  return 0;
+  SyscallExit(static_cast<int>(result));
 }

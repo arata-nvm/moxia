@@ -258,10 +258,14 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
     return err;
   }
 
-  auto entry_addr = efl_header->e_entry;
-  CallApp(argc.value, argv, kUserCS | 3, kUserSS | 3, entry_addr, stack_frame_addr.value + 4096 - 8);
+  __asm__("cli");
+  auto &task = task_manager->CurrentTask();
+  __asm__("sti");
 
-  //printk("app exited. ret = %d\n", ret);
+  auto entry_addr = efl_header->e_entry;
+  int ret = CallApp(argc.value, argv, kUserSS | 3, entry_addr, stack_frame_addr.value + 4096 - 8, &task.OSStackPointer());
+
+  printk("app exited. ret = %d\n", ret);
 
   const auto addr_first = GetFirstLoadAddress(efl_header);
   if (auto err = CleanPageMaps(LinearAddress4Level{addr_first})) {
