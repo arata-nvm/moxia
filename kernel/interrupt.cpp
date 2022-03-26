@@ -13,10 +13,6 @@ namespace {
 __attribute__((interrupt)) void IntHandlerKeyboard(InterruptFrame *frame) {
   KeyboardOnInterrupt();
 }
-
-__attribute__((interrupt)) void IntHandlerLAPICTimer(InterruptFrame *frame) {
-  LAPICTimerOnInterrupt();
-}
 } // namespace
 
 constexpr InterruptDescriptorAttribute MakeIDTAttr(DescriptorType type, uint8_t descriptor_privilege_level, bool present = true, uint8_t interrupt_stack_table = 0) {

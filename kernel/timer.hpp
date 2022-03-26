@@ -1,6 +1,7 @@
 #pragma once
 
 #include "message.hpp"
+#include "task.hpp"
 #include <deque>
 #include <limits>
 #include <queue>
@@ -11,7 +12,7 @@ void StartLAPICTimer();
 uint32_t LAPICTimerElapsed();
 void StopLAPICTimer();
 
-void LAPICTimerOnInterrupt();
+extern "C" void LAPICTimerOnInterrupt(const TaskContext &ctx_stack);
 
 class Timer {
 public:

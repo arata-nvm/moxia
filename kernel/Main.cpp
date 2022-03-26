@@ -42,6 +42,7 @@ KernelMainNewStack(const FrameBufferConfig &frame_buffer_config, const MemoryMap
   InitializePaging();
   InitializeMemoryManager(memory_map);
   InitializePIC();
+  InitializeTSS();
   InitializeInterrupt();
 
   fat::Initialize(volume_image);

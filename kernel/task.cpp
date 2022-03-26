@@ -97,30 +97,13 @@ Task &TaskManager::NewTask() {
   return *tasks_.emplace_back(new Task{latest_id_});
 }
 
-void TaskManager::SwitchTask(bool current_sleep) {
-  auto &level_queue = running_[current_level_];
-  Task *current_task = level_queue.front();
-  level_queue.pop_front();
-  if (!current_sleep) {
-    level_queue.push_back(current_task);
+void TaskManager::SwitchTask(const TaskContext &current_ctx) {
+  TaskContext &task_ctx = this->CurrentTask().Context();
+  memcpy(&task_ctx, &current_ctx, sizeof(TaskContext));
+  Task *current_task = RotateCurrentRunQueue(false);
+  if (&CurrentTask() != current_task) {
+    RestoreContext(&CurrentTask().Context());
   }
-  if (level_queue.empty()) {
-    level_changed_ = true;
-  }
-
-  if (level_changed_) {
-    level_changed_ = false;
-    for (int lv = kMaxLevel; lv >= 0; --lv) {
-      if (!running_[lv].empty()) {
-        current_level_ = lv;
-        break;
-      }
-    }
-  }
-
-  Task *next_task = running_[current_level_].front();
-
-  SwitchContext(&next_task->Context(), &current_task->Context());
 }
 
 Task &TaskManager::CurrentTask() {
@@ -135,7 +118,8 @@ void TaskManager::Sleep(Task *task) {
   task->SetRunning(false);
 
   if (task == running_[current_level_].front()) {
-    SwitchTask(true);
+    Task *current_task = RotateCurrentRunQueue(true);
+    SwitchContext(&CurrentTask().Context(), &current_task->Context());
     return;
   }
 
@@ -217,6 +201,30 @@ void TaskManager::ChangeLevelRunning(Task *task, int level) {
   }
 }
 
+Task *TaskManager::RotateCurrentRunQueue(bool current_sleep) {
+  auto &level_queue = running_[current_level_];
+  Task *current_task = level_queue.front();
+  level_queue.pop_front();
+  if (!current_sleep) {
+    level_queue.push_back(current_task);
+  }
+  if (level_queue.empty()) {
+    level_changed_ = true;
+  }
+
+  if (level_changed_) {
+    level_changed_ = false;
+    for (int lv = kMaxLevel; lv >= 0; --lv) {
+      if (!running_[lv].empty()) {
+        current_level_ = lv;
+        break;
+      }
+    }
+  }
+
+  return current_task;
+}
+
 TaskManager *task_manager;
 
 void InitializeTask() {
@@ -225,8 +233,4 @@ void InitializeTask() {
   __asm__("cli");
   timer_manager->AddTimer(Timer{timer_manager->CurrentTick() + kTaskTimerPeriod, kTaskTimerValue});
   __asm__("sti");
-}
-
-void SwitchTask() {
-  task_manager->SwitchTask(false);
 }
