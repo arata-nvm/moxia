@@ -5,6 +5,7 @@ struct Message {
   enum Type {
     kTimerTimeout,
     kKeyboardPush,
+    kPipe,
   } type;
 
   union {
@@ -15,5 +16,9 @@ struct Message {
     struct {
       uint16_t keycode;
     } keyboard;
+    struct {
+      char data[16];
+      uint8_t len;
+    } pipe;
   } arg;
 };

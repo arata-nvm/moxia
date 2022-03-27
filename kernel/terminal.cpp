@@ -15,7 +15,6 @@
 
 namespace {
 
-std::array<std::shared_ptr<FileDescriptor>, 3> files;
 int last_exit_code{0};
 
 WithError<int> MakeArgVector(char *cmd, char *first_arg, char **argv, int argv_len, char *argbuf, int argbuf_len) {
@@ -319,7 +318,71 @@ size_t TerminalFileDescriptor::Write(const void *buf, size_t len) {
   return len;
 }
 
-WithError<int> ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_arg) {
+PipeDescriptor::PipeDescriptor(Task &task) : task_{task} {}
+
+size_t PipeDescriptor::Read(void *buf, size_t len) {
+  if (len_ > 0) {
+    const size_t copy_bytes = std::min(len_, len);
+    memcpy(buf, data_, copy_bytes);
+    len_ -= copy_bytes;
+    memmove(data_, &data_[copy_bytes], len_);
+    return copy_bytes;
+  }
+
+  if (closed_) {
+    return 0;
+  }
+
+  while (true) {
+    __asm__("cli");
+    auto msg = task_.ReceiveMessage();
+    if (!msg) {
+      task_.Sleep();
+      continue;
+    }
+    __asm__("sti");
+
+    if (msg->type != Message::kPipe) {
+      continue;
+    }
+
+    if (msg->arg.pipe.len == 0) {
+      closed_ = true;
+      return 0;
+    }
+
+    const size_t copy_bytes = std::min<size_t>(msg->arg.pipe.len, len);
+    memcpy(buf, msg->arg.pipe.data, copy_bytes);
+    len_ = msg->arg.pipe.len - copy_bytes;
+    memcpy(data_, &msg->arg.pipe.data[copy_bytes], len_);
+    return copy_bytes;
+  }
+}
+
+size_t PipeDescriptor::Write(const void *buf, size_t len) {
+  auto bufc = reinterpret_cast<const char *>(buf);
+  Message msg{Message::kPipe};
+  size_t sent_bytes = 0;
+  while (sent_bytes < len) {
+    msg.arg.pipe.len = std::min(len - sent_bytes, sizeof(msg.arg.pipe.data));
+    memcpy(msg.arg.pipe.data, &bufc[sent_bytes], msg.arg.pipe.len);
+    sent_bytes += msg.arg.pipe.len;
+    __asm__("cli");
+    task_.SendMessage(msg);
+    __asm__("sti");
+  }
+  return len;
+}
+
+void PipeDescriptor::FinishWrite() {
+  Message msg{Message::kPipe};
+  msg.arg.pipe.len = 0;
+  __asm__("cli");
+  task_.SendMessage(msg);
+  __asm__("sti");
+}
+
+WithError<int> ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_arg, std::array<std::shared_ptr<FileDescriptor>, 3> files) {
   std::vector<uint8_t> file_buf(file_entry.file_size);
   fat::LoadFile(&file_buf[0], file_buf.size(), file_entry);
 
@@ -381,10 +444,11 @@ WithError<int> ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, cha
   return {ret, MAKE_ERROR(Error::kSuccess)};
 }
 
-void ExecuteCommand(std::string line) {
+void ExecuteCommand(std::string line, std::array<std::shared_ptr<FileDescriptor>, 3> files) {
   char *cmd = &line[0];
   char *arg = strchr(&line[0], ' ');
   char *redir_char = strchr(&line[0], '>');
+  char *pipe_char = strchr(&line[0], '|');
   if (arg) {
     *arg = 0;
     ++arg;
@@ -392,6 +456,24 @@ void ExecuteCommand(std::string line) {
 
   auto original_stdout = files[1];
   int exit_code = 0;
+  std::shared_ptr<PipeDescriptor> pipe_fd;
+  uint64_t subtask_id = 0;
+
+  if (pipe_char) {
+    *pipe_char = 0;
+    char *subcommand = &pipe_char[1];
+    while (isspace(*subcommand)) {
+      ++subcommand;
+    }
+
+    auto &subtask = task_manager->NewTask();
+    pipe_fd = std::make_shared<PipeDescriptor>(subtask);
+    auto term_desc = new TerminalDescriptor{
+        subcommand, {pipe_fd, files[1], files[2]}};
+    files[1] = pipe_fd;
+
+    subtask_id = subtask.InitContext(TaskTerminal, reinterpret_cast<int64_t>(term_desc)).Wakeup().ID();
+  }
 
   if (redir_char) {
     *redir_char = 0;
@@ -476,7 +558,7 @@ void ExecuteCommand(std::string line) {
       fat::FormatName(*file_entry, name);
       printk("%s is not a directory\n", name);
     } else {
-      auto [ec, err] = ExecuteFile(*file_entry, cmd, arg);
+      auto [ec, err] = ExecuteFile(*file_entry, cmd, arg, files);
       if (err) {
         printk("failed to exec file: %s\n", err.Name());
       } else {
@@ -485,21 +567,50 @@ void ExecuteCommand(std::string line) {
     }
   }
 
+  if (pipe_fd) {
+    pipe_fd->FinishWrite();
+    __asm__("cli");
+    auto [ec, err] = task_manager->WaitFinish(subtask_id);
+    __asm__("sti");
+    if (err) {
+      printk("failed to wait finish: %s\n", err.Name());
+    }
+    exit_code = ec;
+  }
+
   last_exit_code = exit_code;
   files[1] = original_stdout;
 }
 
 void TaskTerminal(uint64_t task_id, int64_t data) {
+  const auto term_desc = reinterpret_cast<TerminalDescriptor *>(data);
+
   __asm__("cli");
   Task &task = task_manager->CurrentTask();
   __asm__("sti");
 
-  for (int i = 0; i < files.size(); ++i) {
-    files[i] = std::make_shared<TerminalFileDescriptor>(task);
+  std::array<std::shared_ptr<FileDescriptor>, 3> files;
+  if (term_desc) {
+    for (int i = 0; i < files.size(); ++i) {
+      files[i] = term_desc->files[i];
+    }
+  } else {
+    for (int i = 0; i < files.size(); ++i) {
+      files[i] = std::make_shared<TerminalFileDescriptor>(task);
+    }
+  }
+
+  if (term_desc && !term_desc->command_line.empty()) {
+    ExecuteCommand(term_desc->command_line, files);
+    delete term_desc;
+    __asm__("cli");
+    task_manager->Finish(last_exit_code);
+    __asm__("sti");
+    return;
   }
 
   std::string line_buf;
-  printk("> ");
+  console->PutString("> ");
 
   while (true) {
     __asm__("cli");
@@ -513,12 +624,12 @@ void TaskTerminal(uint64_t task_id, int64_t data) {
 
     if (msg->type == Message::kKeyboardPush) {
       char c = msg->arg.keyboard.keycode & kKeyCharMask;
-      printk("%c", c);
+      console->PutChar(c);
 
       if (c == '\n') {
-        ExecuteCommand(line_buf);
+        ExecuteCommand(line_buf, files);
         line_buf.clear();
-        printk("> ");
+        console->PutString("> ");
       } else {
         line_buf.push_back(c);
       }
