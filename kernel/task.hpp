@@ -2,6 +2,7 @@
 
 #include "error.hpp"
 #include "fat.hpp"
+#include "file.hpp"
 #include "message.hpp"
 #include <array>
 #include <deque>
@@ -33,7 +34,7 @@ public:
   uint64_t ID() const;
   unsigned int Level() const;
   uint64_t &OSStackPointer();
-  std::vector<std::unique_ptr<fat::FileDescriptor>> &Files();
+  std::vector<std::unique_ptr<::FileDescriptor>> &Files();
 
   bool Running() const;
   Task &Sleep();
@@ -52,7 +53,7 @@ private:
   unsigned int level_{kDefaultLevel};
   bool running_{false};
   uint64_t os_stack_ptr_;
-  std::vector<std::unique_ptr<fat::FileDescriptor>> files_{};
+  std::vector<std::unique_ptr<::FileDescriptor>> files_{};
 
   Task &SetLevel(int level) {
     level_ = level;

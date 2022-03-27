@@ -1,4 +1,5 @@
 #pragma once
+#include "file.hpp"
 #include <stddef.h>
 #include <stdint.h>
 #include <utility>
@@ -66,10 +67,10 @@ struct DirectoryEntry {
   }
 } __attribute__((packed));
 
-class FileDescriptor {
+class FileDescriptor : public ::FileDescriptor {
 public:
   explicit FileDescriptor(DirectoryEntry &fat_entry);
-  size_t Read(void *buf, size_t len);
+  size_t Read(void *buf, size_t len) override;
 
 private:
   DirectoryEntry &fat_entry_;

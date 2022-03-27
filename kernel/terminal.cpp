@@ -270,6 +270,30 @@ void ListAllEntries(uint32_t dir_cluster) {
 
 } // namespace
 
+TerminalFileDescriptor::TerminalFileDescriptor(Task &task) : task_{task} {}
+
+size_t TerminalFileDescriptor::Read(void *buf, size_t len) {
+  char *bufc = reinterpret_cast<char *>(buf);
+
+  while (true) {
+    __asm__("cli");
+    auto msg = task_.ReceiveMessage();
+    if (!msg) {
+      // TODO: why can"t I Sleep here?
+      // task_.Sleep();
+      __asm__("sti");
+      continue;
+    }
+    __asm__("sti");
+
+    if (msg->type == Message::kKeyboardPush) {
+      bufc[0] = msg->arg.keyboard.keycode & kKeyCharMask;
+      console->PutChar(bufc[0]);
+      return 1;
+    }
+  }
+}
+
 Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_arg) {
   std::vector<uint8_t> file_buf(file_entry.file_size);
   fat::LoadFile(&file_buf[0], file_buf.size(), file_entry);
@@ -311,8 +335,12 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
     return err;
   }
 
+  task.Files().push_back(std::make_unique<TerminalFileDescriptor>(task));
+
   auto entry_addr = efl_header->e_entry;
   int ret = CallApp(argc.value, argv, kUserSS | 3, entry_addr, stack_frame_addr.value + 4096 - 8, &task.OSStackPointer());
+
+  task.Files().clear();
 
   printk("app exited. ret = %d\n", ret);
 
