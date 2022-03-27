@@ -1,4 +1,5 @@
 #pragma once
+#include "error.hpp"
 #include "file.hpp"
 #include <stddef.h>
 #include <stdint.h>
@@ -94,6 +95,8 @@ T *GetSectorByCluster(unsigned long cluster) {
 void ReadName(const DirectoryEntry &entry, char *base, char *ext);
 
 uint32_t NextCluster(uint32_t cluster);
+
+WithError<DirectoryEntry *> CreateFile(const char *path);
 
 size_t LoadFile(void *buf, size_t len, const DirectoryEntry &entry);
 

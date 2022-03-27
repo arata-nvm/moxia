@@ -10,6 +10,8 @@ public:
     kNoSuchTask,
     kInvalidFormat,
     kFull,
+    kIsDirectory,
+    kNoSuchDirectory,
     kLastOfCode,
   };
 
@@ -19,6 +21,8 @@ private:
       "kNoEnoughEmpty",
       "kNoSuchTask",
       "kInvalidFormat",
+      "kIsDirectory",
+      "kNoSuchDirectory",
       "kFull",
   };
   static_assert(Error::Code::kLastOfCode == code_names_.size());

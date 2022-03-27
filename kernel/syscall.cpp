@@ -67,19 +67,29 @@ SYSCALL(open) {
     return {0, 0};
   }
 
-  if ((flags & O_ACCMODE) == O_WRONLY) {
-    return {0, EINVAL};
-  }
+  auto [file, post_slash] = fat::FindFile(path);
+  if (file == nullptr) {
+    if ((flags & O_ACCMODE) == 0) {
+      return {0, ENOENT};
+    }
 
-  auto [dir, post_slash] = fat::FindFile(path);
-  if (dir == nullptr) {
-    return {0, ENOENT};
-  } else if (dir->attr != fat::Attribute::kDirectory && post_slash) {
+    auto [new_file, err] = fat::CreateFile(path);
+    switch (err.Cause()) {
+    case Error::kIsDirectory:
+      return {0, EISDIR};
+    case Error::kNoSuchDirectory:
+      return {0, ENOENT};
+    case Error::kNoEnoughMemory:
+      return {0, ENOSPC};
+    }
+
+    file = new_file;
+  } else if (file->attr != fat::Attribute::kDirectory && post_slash) {
     return {0, ENOENT};
   }
 
   size_t fd = task.AllocateFD();
-  task.Files()[fd] = std::make_unique<fat::FileDescriptor>(*dir);
+  task.Files()[fd] = std::make_unique<fat::FileDescriptor>(*file);
   return {fd, 0};
 }
 
