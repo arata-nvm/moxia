@@ -11,7 +11,9 @@ struct SyscallResult {
   int error;
 };
 
+struct SyscallResult SyscallRead(int fd, const void *buf, size_t len);
 struct SyscallResult SyscallWrite(int fd, const void *buf, size_t len);
+struct SyscallResult SyscallOpen(const char *path, int flags);
 void SyscallExit(int exit_code);
 
 #ifdef __cplusplus

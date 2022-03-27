@@ -24,14 +24,30 @@ off_t lseek(int fd, off_t offset, int whence) {
   return -1;
 }
 
-ssize_t read(int fd, void *buf, size_t count) {
-  errno = EBADF;
+caddr_t sbrk(int incr) {
+  static uint8_t heap[4096];
+  static int i = 0;
+  int prev = i;
+  i += incr;
+  return (caddr_t)&heap[prev];
+}
+
+int open(const char *path, int flags) {
+  struct SyscallResult res = SyscallOpen(path, flags);
+  if (res.error == 0) {
+    return res.value;
+  }
+  errno = res.error;
   return -1;
 }
 
-caddr_t sbrk(int incr) {
-  errno = ENOMEM;
-  return (caddr_t)-1;
+ssize_t read(int fd, void *buf, size_t count) {
+  struct SyscallResult res = SyscallRead(fd, buf, count);
+  if (res.error == 0) {
+    return res.value;
+  }
+  errno = res.error;
+  return -1;
 }
 
 ssize_t write(int fd, const void *buf, size_t count) {
