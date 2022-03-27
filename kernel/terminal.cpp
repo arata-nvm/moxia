@@ -3,6 +3,7 @@
 #include "console.hpp"
 #include "elf.hpp"
 #include "fat.hpp"
+#include "file.hpp"
 #include "keyboard.hpp"
 #include "memory_manager.hpp"
 #include "paging.hpp"
@@ -13,6 +14,8 @@
 #include <string>
 
 namespace {
+
+std::array<std::shared_ptr<FileDescriptor>, 3> files;
 
 WithError<int> MakeArgVector(char *cmd, char *first_arg, char **argv, int argv_len, char *argbuf, int argbuf_len) {
   int argc = 0;
@@ -356,8 +359,8 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
     return err;
   }
 
-  for (int i = 0; i < 3; ++i) {
-    task.Files().push_back(std::make_unique<TerminalFileDescriptor>(task));
+  for (int i = 0; i < files.size(); ++i) {
+    task.Files().push_back(files[i]);
   }
 
   auto entry_addr = efl_header->e_entry;
@@ -376,19 +379,40 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
 }
 
 void ExecuteCommand(std::string line) {
-  size_t i = line.find(' ');
-  char *cmd, *arg;
-  if (i == std::string::npos) {
-    cmd = &line[0];
-    arg = &line[line.size()];
-  } else {
-    line[i] = 0;
-    cmd = &line[0];
-    arg = &line[i + 1];
+  char *cmd = &line[0];
+  char *arg = strchr(&line[0], ' ');
+  char *redir_char = strchr(&line[0], '>');
+  if (arg) {
+    *arg = 0;
+    ++arg;
+  }
+
+  auto original_stdout = files[1];
+
+  if (redir_char) {
+    *redir_char = 0;
+    char *redir_dest = &redir_char[1];
+    while (isspace(*redir_dest)) {
+      ++redir_dest;
+    }
+
+    auto [file, post_slash] = fat::FindFile(redir_dest);
+    if (file == nullptr) {
+      auto [new_file, err] = fat::CreateFile(redir_dest);
+      if (err) {
+        PrintToFD(*files[2], "failed to create a redirect file: %s\n", err.Name());
+        return;
+      }
+      file = new_file;
+    } else if (file->attr == fat::Attribute::kDirectory || post_slash) {
+      PrintToFD(*files[2], "cannot redirect to a directory\n");
+      return;
+    }
+    files[1] = std::make_shared<fat::FileDescriptor>(*file);
   }
 
   if (!strcmp(cmd, "echo")) {
-    printk("%s\n", arg);
+    PrintToFD(*files[1], "%s\n", arg);
   } else if (!strcmp(cmd, "clear")) {
     console->Clear();
   } else if (!strcmp(cmd, "ls")) {
@@ -397,16 +421,16 @@ void ExecuteCommand(std::string line) {
     } else {
       auto [dir, post_slash] = fat::FindFile(arg);
       if (dir == nullptr) {
-        printk("Not such file or directory: %s\n", arg);
+        PrintToFD(*files[2], "Not such file or directory: %s\n", arg);
       } else if (dir->attr == fat::Attribute::kDirectory) {
         ListAllEntries(dir->FirstCluster());
       } else {
         char name[13];
         fat::FormatName(*dir, name);
         if (post_slash) {
-          printk("%s is not a directory\n", name);
+          PrintToFD(*files[2], "%s is not a directory\n", name);
         } else {
-          printk("%s\n");
+          PrintToFD(*files[1], "%s\n");
         }
       }
     }
@@ -414,7 +438,7 @@ void ExecuteCommand(std::string line) {
   } else if (!strcmp(cmd, "cat")) {
     auto [file_entry, post_slash] = fat::FindFile(arg);
     if (!file_entry) {
-      printk("no such file: %s\n", arg);
+      PrintToFD(*files[2], "no such file: %s\n", arg);
     } else {
       uint32_t cluster = file_entry->FirstCluster();
       uint32_t remain_bytes = file_entry->file_size;
@@ -424,7 +448,7 @@ void ExecuteCommand(std::string line) {
 
         int i = 0;
         for (; i < fat::bytes_per_cluster && i < remain_bytes; ++i) {
-          printk("%c", *p);
+          PrintToFD(*files[1], "%c", *p);
           p++;
         }
         remain_bytes -= i;
@@ -443,12 +467,18 @@ void ExecuteCommand(std::string line) {
       printk("failed to exec file: %s\n", err.Name());
     }
   }
+
+  files[1] = original_stdout;
 }
 
 void TaskTerminal(uint64_t task_id, int64_t data) {
   __asm__("cli");
   Task &task = task_manager->CurrentTask();
   __asm__("sti");
+
+  for (int i = 0; i < files.size(); ++i) {
+    files[i] = std::make_shared<TerminalFileDescriptor>(task);
+  }
 
   std::string line_buf;
   printk("> ");

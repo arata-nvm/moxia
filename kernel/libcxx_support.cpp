@@ -9,6 +9,10 @@ std::new_handler std::get_new_handler() noexcept {
   };
 }
 
+std::exception::~exception() {}
+
+const char *std::exception::what() const noexcept { return ""; }
+
 extern "C" int posix_memalign(void **, size_t, size_t) {
   return ENOMEM;
 }
