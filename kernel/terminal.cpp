@@ -286,11 +286,25 @@ size_t TerminalFileDescriptor::Read(void *buf, size_t len) {
     }
     __asm__("sti");
 
-    if (msg->type == Message::kKeyboardPush) {
-      bufc[0] = msg->arg.keyboard.keycode & kKeyCharMask;
-      console->PutChar(bufc[0]);
-      return 1;
+    if (msg->type != Message::kKeyboardPush) {
+      continue;
     }
+
+    char c = msg->arg.keyboard.keycode & kKeyCharMask;
+
+    if (msg->arg.keyboard.keycode & kKeyCtrlMask) {
+      char s[3] = "^ ";
+      s[1] = toupper(c);
+      console->PutString(s);
+      if (c == 'd') {
+        return 0; // EOT
+      }
+      continue;
+    }
+
+    bufc[0] = c;
+    console->PutChar(c);
+    return 1;
   }
 }
 
