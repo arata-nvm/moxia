@@ -16,6 +16,7 @@
 namespace {
 
 std::array<std::shared_ptr<FileDescriptor>, 3> files;
+int last_exit_code{0};
 
 WithError<int> MakeArgVector(char *cmd, char *first_arg, char **argv, int argv_len, char *argbuf, int argbuf_len) {
   int argc = 0;
@@ -318,7 +319,7 @@ size_t TerminalFileDescriptor::Write(const void *buf, size_t len) {
   return len;
 }
 
-Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_arg) {
+WithError<int> ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_arg) {
   std::vector<uint8_t> file_buf(file_entry.file_size);
   fat::LoadFile(&file_buf[0], file_buf.size(), file_entry);
 
@@ -326,7 +327,7 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
   if (memcmp(efl_header->e_ident, "\x7f"
                                   "ELF",
              4) != 0) {
-    return MAKE_ERROR(Error::kInvalidFormat);
+    return {0, MAKE_ERROR(Error::kInvalidFormat)};
   }
 
   __asm__("cli");
@@ -334,16 +335,16 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
   __asm__("sti");
 
   if (auto pml4 = SetupPML4(task); pml4.error) {
-    return pml4.error;
+    return {0, pml4.error};
   }
 
   if (auto err = LoadELF(efl_header)) {
-    return err;
+    return {0, err};
   }
 
   LinearAddress4Level args_frame_addr{0xffff'ffff'ffff'f000};
   if (auto err = SetupPageMaps(args_frame_addr, 1)) {
-    return err;
+    return {0, err};
   }
   auto argv = reinterpret_cast<char **>(args_frame_addr.value);
   int argv_len = 32;
@@ -351,12 +352,12 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
   int argbuf_len = 4096 - sizeof(char **) * argv_len;
   auto argc = MakeArgVector(cmd, first_arg, argv, argv_len, argbuf, argbuf_len);
   if (argc.error) {
-    return argc.error;
+    return {0, argc.error};
   }
 
   LinearAddress4Level stack_frame_addr{0xffff'ffff'ffff'e000};
   if (auto err = SetupPageMaps(stack_frame_addr, 1)) {
-    return err;
+    return {0, err};
   }
 
   for (int i = 0; i < files.size(); ++i) {
@@ -368,14 +369,16 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
 
   task.Files().clear();
 
-  printk("app exited. ret = %d\n", ret);
-
   const auto addr_first = GetFirstLoadAddress(efl_header);
   if (auto err = CleanPageMaps(LinearAddress4Level{addr_first})) {
-    return err;
+    return {0, err};
   }
 
-  return FreePML4(task);
+  if (auto err = FreePML4(task)) {
+    return {0, err};
+  }
+
+  return {ret, MAKE_ERROR(Error::kSuccess)};
 }
 
 void ExecuteCommand(std::string line) {
@@ -388,6 +391,7 @@ void ExecuteCommand(std::string line) {
   }
 
   auto original_stdout = files[1];
+  int exit_code = 0;
 
   if (redir_char) {
     *redir_char = 0;
@@ -412,7 +416,12 @@ void ExecuteCommand(std::string line) {
   }
 
   if (!strcmp(cmd, "echo")) {
-    PrintToFD(*files[1], "%s\n", arg);
+    if (arg && !strncmp(arg, "$?", 2)) {
+      PrintToFD(*files[1], "%d", last_exit_code);
+    } else {
+      PrintToFD(*files[1], "%s", arg);
+    }
+    PrintToFD(*files[1], "\n");
   } else if (!strcmp(cmd, "clear")) {
     console->Clear();
   } else if (!strcmp(cmd, "ls")) {
@@ -422,6 +431,7 @@ void ExecuteCommand(std::string line) {
       auto [dir, post_slash] = fat::FindFile(arg);
       if (dir == nullptr) {
         PrintToFD(*files[2], "Not such file or directory: %s\n", arg);
+        exit_code = 1;
       } else if (dir->attr == fat::Attribute::kDirectory) {
         ListAllEntries(dir->FirstCluster());
       } else {
@@ -429,6 +439,7 @@ void ExecuteCommand(std::string line) {
         fat::FormatName(*dir, name);
         if (post_slash) {
           PrintToFD(*files[2], "%s is not a directory\n", name);
+          exit_code = 1;
         } else {
           PrintToFD(*files[1], "%s\n");
         }
@@ -439,6 +450,7 @@ void ExecuteCommand(std::string line) {
     auto [file_entry, post_slash] = fat::FindFile(arg);
     if (!file_entry) {
       PrintToFD(*files[2], "no such file: %s\n", arg);
+      exit_code = 1;
     } else {
       uint32_t cluster = file_entry->FirstCluster();
       uint32_t remain_bytes = file_entry->file_size;
@@ -463,11 +475,17 @@ void ExecuteCommand(std::string line) {
       char name[13];
       fat::FormatName(*file_entry, name);
       printk("%s is not a directory\n", name);
-    } else if (auto err = ExecuteFile(*file_entry, cmd, arg)) {
-      printk("failed to exec file: %s\n", err.Name());
+    } else {
+      auto [ec, err] = ExecuteFile(*file_entry, cmd, arg);
+      if (err) {
+        printk("failed to exec file: %s\n", err.Name());
+      } else {
+        exit_code = ec;
+      }
     }
   }
 
+  last_exit_code = exit_code;
   files[1] = original_stdout;
 }
 
