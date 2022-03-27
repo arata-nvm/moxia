@@ -41,19 +41,21 @@ SYSCALL(read) {
 // TODO: why can't I use printk() here ?
 SYSCALL(write) {
   const auto fd = arg1;
-  const char *s = reinterpret_cast<const char *>(arg2);
-  const auto len = arg3;
-  if (len > 1024) {
+  const char *buf = reinterpret_cast<const char *>(arg2);
+  const auto count = arg3;
+  if (count > 1024) {
     return {0, E2BIG};
   }
 
-  if (fd == 1) {
-    for (size_t i = 0; i < len; i++) {
-      console->PutChar(s[i]);
-    }
-    return {len, 0};
+  __asm__("cli");
+  auto &task = task_manager->CurrentTask();
+  __asm__("sti");
+
+  if (fd < 0 || task.Files().size() <= fd || !task.Files()[fd]) {
+    return {0, EBADF};
   }
-  return {0, EBADF};
+
+  return {task.Files()[fd]->Write(buf, count), 0};
 }
 
 SYSCALL(open) {

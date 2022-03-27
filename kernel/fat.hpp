@@ -72,12 +72,18 @@ class FileDescriptor : public ::FileDescriptor {
 public:
   explicit FileDescriptor(DirectoryEntry &fat_entry);
   size_t Read(void *buf, size_t len) override;
+  size_t Write(const void *buf, size_t len) override;
 
 private:
   DirectoryEntry &fat_entry_;
+
   size_t rd_off_ = 0;
   uint32_t rd_cluster_ = 0;
   size_t rd_cluster_off_ = 0;
+
+  size_t wr_off_ = 0;
+  uint32_t wr_cluster_ = 0;
+  size_t wr_cluster_off_ = 0;
 };
 
 extern BPB *boot_volume_image;
@@ -96,6 +102,16 @@ void ReadName(const DirectoryEntry &entry, char *base, char *ext);
 
 uint32_t NextCluster(uint32_t cluster);
 
+uint32_t *GetFAT();
+
+bool IsEndOfClusterchain(uint32_t cluster);
+
+uint32_t ExtendCluster(uint32_t eoc_cluster, size_t n);
+
+DirectoryEntry *AllocateEntry(uint32_t dir_cluster);
+
+void SetFileName(DirectoryEntry &entry, const char *name);
+
 WithError<DirectoryEntry *> CreateFile(const char *path);
 
 size_t LoadFile(void *buf, size_t len, const DirectoryEntry &entry);
@@ -105,5 +121,7 @@ std::pair<DirectoryEntry *, bool> FindFile(const char *path, uint32_t directory_
 bool NameIsEqual(const DirectoryEntry &entry, const char *name);
 
 void FormatName(const DirectoryEntry &entry, char *dest);
+
+uint32_t AllocateClusterchain(size_t n);
 
 } // namespace fat

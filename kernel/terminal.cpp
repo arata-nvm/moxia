@@ -308,6 +308,13 @@ size_t TerminalFileDescriptor::Read(void *buf, size_t len) {
   }
 }
 
+size_t TerminalFileDescriptor::Write(const void *buf, size_t len) {
+  for (size_t i = 0; i < len; i++) {
+    console->PutChar(reinterpret_cast<const char *>(buf)[i]);
+  }
+  return len;
+}
+
 Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_arg) {
   std::vector<uint8_t> file_buf(file_entry.file_size);
   fat::LoadFile(&file_buf[0], file_buf.size(), file_entry);
@@ -349,7 +356,9 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
     return err;
   }
 
-  task.Files().push_back(std::make_unique<TerminalFileDescriptor>(task));
+  for (int i = 0; i < 3; ++i) {
+    task.Files().push_back(std::make_unique<TerminalFileDescriptor>(task));
+  }
 
   auto entry_addr = efl_header->e_entry;
   int ret = CallApp(argc.value, argv, kUserSS | 3, entry_addr, stack_frame_addr.value + 4096 - 8, &task.OSStackPointer());
