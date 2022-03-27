@@ -59,6 +59,10 @@ uint64_t &Task::OSStackPointer() {
   return os_stack_ptr_;
 }
 
+std::vector<std::unique_ptr<fat::FileDescriptor>> &Task::Files() {
+  return files_;
+}
+
 bool Task::Running() const {
   return running_;
 }
@@ -86,6 +90,17 @@ std::optional<Message> Task::ReceiveMessage() {
   auto m = msgs_.front();
   msgs_.pop_front();
   return m;
+}
+
+size_t Task::AllocateFD() {
+  const size_t num_files = files_.size();
+  for (size_t i = 0; i < num_files; ++i) {
+    if (!files_[i]) {
+      return i;
+    }
+  }
+  files_.emplace_back();
+  return num_files;
 }
 
 TaskManager::TaskManager() {

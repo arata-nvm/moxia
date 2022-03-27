@@ -1,6 +1,7 @@
 #pragma once
 
 #include "error.hpp"
+#include "fat.hpp"
 #include "message.hpp"
 #include <array>
 #include <deque>
@@ -32,12 +33,16 @@ public:
   uint64_t ID() const;
   unsigned int Level() const;
   uint64_t &OSStackPointer();
+  std::vector<std::unique_ptr<fat::FileDescriptor>> &Files();
+
   bool Running() const;
   Task &Sleep();
   Task &Wakeup();
 
   void SendMessage(const Message &msg);
   std::optional<Message> ReceiveMessage();
+
+  size_t AllocateFD();
 
 private:
   uint64_t id_;
@@ -47,6 +52,7 @@ private:
   unsigned int level_{kDefaultLevel};
   bool running_{false};
   uint64_t os_stack_ptr_;
+  std::vector<std::unique_ptr<fat::FileDescriptor>> files_{};
 
   Task &SetLevel(int level) {
     level_ = level;

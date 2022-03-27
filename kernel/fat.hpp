@@ -66,6 +66,18 @@ struct DirectoryEntry {
   }
 } __attribute__((packed));
 
+class FileDescriptor {
+public:
+  explicit FileDescriptor(DirectoryEntry &fat_entry);
+  size_t Read(void *buf, size_t len);
+
+private:
+  DirectoryEntry &fat_entry_;
+  size_t rd_off_ = 0;
+  uint32_t rd_cluster_ = 0;
+  size_t rd_cluster_off_ = 0;
+};
+
 extern BPB *boot_volume_image;
 extern uint32_t bytes_per_cluster;
 

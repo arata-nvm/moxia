@@ -261,7 +261,7 @@ SyscallEntry:
   mov rsp, rbp
 
   pop rsi
-  cmp esi, 0x80000001
+  cmp esi, 0x80000003
   je .exit
 
   pop r11
