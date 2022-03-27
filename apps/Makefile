@@ -1,8 +1,11 @@
 .PHONY: build
-build: rpn
+build: rpn fault
 
 .FORCE:
 
+fault: .FORCE
+	make -C ./fault
+	
 rpn: .FORCE
 	make -C ./rpn
 
