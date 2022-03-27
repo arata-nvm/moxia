@@ -1,6 +1,7 @@
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
+#include <utility>
 
 namespace fat {
 
@@ -41,7 +42,7 @@ enum class Attribute : uint8_t {
   kHiden = 0x02,
   kSystem = 0x04,
   kVolumeID = 0x08,
-  kdirectory = 0x10,
+  kDirectory = 0x10,
   kArchive = 0x20,
   kLongName = 0x0f,
 };
@@ -83,8 +84,10 @@ uint32_t NextCluster(uint32_t cluster);
 
 size_t LoadFile(void *buf, size_t len, const DirectoryEntry &entry);
 
-DirectoryEntry *FindFile(const char *name, uint32_t directory_cluster = 0);
+std::pair<DirectoryEntry *, bool> FindFile(const char *path, uint32_t directory_cluster = 0);
 
 bool NameIsEqual(const DirectoryEntry &entry, const char *name);
+
+void FormatName(const DirectoryEntry &entry, char *dest);
 
 } // namespace fat

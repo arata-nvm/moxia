@@ -244,6 +244,30 @@ Error FreePML4(Task &current_task) {
   return memory_manager->Free(frame, 1);
 }
 
+void ListAllEntries(uint32_t dir_cluster) {
+  const auto kEntriesPerCluster = fat::bytes_per_cluster / sizeof(fat::DirectoryEntry);
+
+  while (dir_cluster != fat::kEndOfClusterchain) {
+    auto dir = fat::GetSectorByCluster<fat::DirectoryEntry>(dir_cluster);
+
+    for (int i = 0; i < kEntriesPerCluster; ++i) {
+      if (dir[i].name[0] == 0x00) {
+        return;
+      } else if (static_cast<uint8_t>(dir[i].name[0]) == 0xe5) {
+        continue;
+      } else if (dir[i].attr == fat::Attribute::kLongName) {
+        continue;
+      }
+
+      char name[13];
+      fat::FormatName(dir[i], name);
+      printk("%s\n", name);
+    }
+
+    dir_cluster = fat::NextCluster(dir_cluster);
+  }
+}
+
 } // namespace
 
 Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_arg) {
@@ -317,29 +341,27 @@ void ExecuteCommand(std::string line) {
   } else if (!strcmp(cmd, "clear")) {
     console->Clear();
   } else if (!strcmp(cmd, "ls")) {
-    fat::DirectoryEntry *root_dir_entries = fat::GetSectorByCluster<fat::DirectoryEntry>(fat::boot_volume_image->root_cluster);
-    int entries_per_cluster = fat::boot_volume_image->bytes_per_sector / sizeof(fat::DirectoryEntry) * fat::boot_volume_image->sectors_per_cluster;
-    char base[9], ext[4];
-    char s[64];
-    for (int i = 0; i < entries_per_cluster; ++i) {
-      fat::ReadName(root_dir_entries[i], base, ext);
-      if (base[0] == 0x00) {
-        break;
-      } else if (static_cast<uint8_t>(base[0]) == 0xe5) {
-        continue;
-      } else if (root_dir_entries[i].attr == fat::Attribute::kLongName) {
-        continue;
-      }
-
-      if (ext[0]) {
-        sprintf(s, "%s.%s\n", base, ext);
+    if (arg[0] == '\0') {
+      ListAllEntries(fat::boot_volume_image->root_cluster);
+    } else {
+      auto [dir, post_slash] = fat::FindFile(arg);
+      if (dir == nullptr) {
+        printk("Not such file or directory: %s\n", arg);
+      } else if (dir->attr == fat::Attribute::kDirectory) {
+        ListAllEntries(dir->FirstCluster());
       } else {
-        sprintf(s, "%s\n", base);
+        char name[13];
+        fat::FormatName(*dir, name);
+        if (post_slash) {
+          printk("%s is not a directory\n", name);
+        } else {
+          printk("%s\n");
+        }
       }
-      printk("%s", s);
     }
+
   } else if (!strcmp(cmd, "cat")) {
-    fat::DirectoryEntry *file_entry = fat::FindFile(arg);
+    auto [file_entry, post_slash] = fat::FindFile(arg);
     if (!file_entry) {
       printk("no such file: %s\n", arg);
     } else {
@@ -359,9 +381,13 @@ void ExecuteCommand(std::string line) {
       }
     }
   } else {
-    auto file_entry = fat::FindFile(cmd);
+    auto [file_entry, post_slash] = fat::FindFile(cmd);
     if (!file_entry) {
       printk("command not found: %s\n", cmd);
+    } else if (file_entry->attr != fat::Attribute::kDirectory && post_slash) {
+      char name[13];
+      fat::FormatName(*file_entry, name);
+      printk("%s is not a directory\n", name);
     } else if (auto err = ExecuteFile(*file_entry, cmd, arg)) {
       printk("failed to exec file: %s\n", err.Name());
     }
