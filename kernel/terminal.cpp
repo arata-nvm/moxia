@@ -254,10 +254,7 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
   if (memcmp(efl_header->e_ident, "\x7f"
                                   "ELF",
              4) != 0) {
-    using Func = void();
-    Func *f = reinterpret_cast<Func *>(&file_buf[0]);
-    f();
-    return MAKE_ERROR(Error::kSuccess);
+    return MAKE_ERROR(Error::kInvalidFormat);
   }
 
   __asm__("cli");
