@@ -6,9 +6,21 @@
 #include "segment.hpp"
 #include "timer.hpp"
 #include <array>
+#include <csignal>
 
 std::array<InterruptDescriptor, 256> idt;
 namespace {
+void KillApp(InterruptFrame *frame) {
+  const auto cpl = frame->cs & 0x3;
+  if (cpl != 3) {
+    return;
+  }
+
+  auto &task = task_manager->CurrentTask();
+  __asm__("sti");
+  ExitApp(task.OSStackPointer(), 128 + SIGSEGV);
+}
+
 void PrintFrame(InterruptFrame *frame, const char *exp_name) {
   printk("%s\n", exp_name);
   printk("CS: %x\n", frame->cs);
@@ -20,6 +32,7 @@ void PrintFrame(InterruptFrame *frame, const char *exp_name) {
 
 #define FaultHandlerWithError(fault_name)                                                              \
   __attribute__((interrupt)) void IntHandler##fault_name(InterruptFrame *frame, uint64_t error_code) { \
+    KillApp(frame);                                                                                    \
     PrintFrame(frame, "#" #fault_name);                                                                \
     printk("[ERR] %x\n", error_code);                                                                  \
     while (true)                                                                                       \
@@ -28,6 +41,7 @@ void PrintFrame(InterruptFrame *frame, const char *exp_name) {
 
 #define FaultHandlerWithNoError(fault_name)                                       \
   __attribute__((interrupt)) void IntHandler##fault_name(InterruptFrame *frame) { \
+    KillApp(frame);                                                               \
     PrintFrame(frame, "#" #fault_name);                                           \
     while (true)                                                                  \
       __asm__("hlt");                                                             \

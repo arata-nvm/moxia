@@ -18,4 +18,5 @@ int CallApp(int argc, char **argv, uint16_t ss, uint64_t rip, uint64_t rsp, uint
 void IntHandlerLAPICTimer();
 void WriteMSR(uint32_t msr, uint64_t value);
 void SyscallEntry();
+void ExitApp(uint64_t rsp, int32_t ret_val);
 }

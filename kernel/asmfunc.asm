@@ -281,6 +281,20 @@ SyscallEntry:
 
   ret
 
+global ExitApp
+ExitApp:
+  mov rsp, rdi 
+  mov eax, esi
+
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbp
+  pop rbx
+
+  ret
+
 extern kernel_main_stack
 extern KernelMainNewStack
 
