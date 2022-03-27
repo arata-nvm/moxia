@@ -82,6 +82,8 @@ union PageMapEntry {
   }
 };
 
+void ResetCR3();
+
 void SetupIdentityPageTable();
 
 void InitializePaging();

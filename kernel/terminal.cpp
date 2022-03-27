@@ -220,6 +220,30 @@ Error LoadELF(Elf64_Ehdr *ehdr) {
   return MAKE_ERROR(Error::kSuccess);
 }
 
+WithError<PageMapEntry *> SetupPML4(Task &current_task) {
+  auto pml4 = NewPageMap();
+  if (pml4.error) {
+    return pml4;
+  }
+
+  const auto current_pml4 = reinterpret_cast<PageMapEntry *>(GetCR3());
+  memcpy(pml4.value, current_pml4, 256 * sizeof(uint64_t));
+
+  const auto cr3 = reinterpret_cast<uint64_t>(pml4.value);
+  SetCR3(cr3);
+  current_task.Context().cr3 = cr3;
+  return pml4;
+}
+
+Error FreePML4(Task &current_task) {
+  const auto cr3 = current_task.Context().cr3;
+  current_task.Context().cr3 = 0;
+  ResetCR3();
+
+  const FrameID frame{cr3 / kBytesPerFrame};
+  return memory_manager->Free(frame, 1);
+}
+
 } // namespace
 
 Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_arg) {
@@ -234,6 +258,14 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
     Func *f = reinterpret_cast<Func *>(&file_buf[0]);
     f();
     return MAKE_ERROR(Error::kSuccess);
+  }
+
+  __asm__("cli");
+  auto &task = task_manager->CurrentTask();
+  __asm__("sti");
+
+  if (auto pml4 = SetupPML4(task); pml4.error) {
+    return pml4.error;
   }
 
   if (auto err = LoadELF(efl_header)) {
@@ -258,10 +290,6 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
     return err;
   }
 
-  __asm__("cli");
-  auto &task = task_manager->CurrentTask();
-  __asm__("sti");
-
   auto entry_addr = efl_header->e_entry;
   int ret = CallApp(argc.value, argv, kUserSS | 3, entry_addr, stack_frame_addr.value + 4096 - 8, &task.OSStackPointer());
 
@@ -272,7 +300,7 @@ Error ExecuteFile(const fat::DirectoryEntry &file_entry, char *cmd, char *first_
     return err;
   }
 
-  return MAKE_ERROR(Error::kSuccess);
+  return FreePML4(task);
 }
 
 void ExecuteCommand(std::string line) {

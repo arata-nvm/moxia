@@ -13,6 +13,10 @@ alignas(kPageSize4K) std::array<uint64_t, 512> pdp_table;
 alignas(kPageSize4K) std::array<std::array<uint64_t, 512>, kPageDirectoryCount> page_directory;
 } // namespace
 
+void ResetCR3() {
+  SetCR3(reinterpret_cast<uint64_t>(&pml4_table[0]));
+}
+
 void SetupIdentityPageTable() {
   pml4_table[0] = reinterpret_cast<uint64_t>(&pdp_table[0]) | 0x003;
   for (int i_pdpt = 0; i_pdpt < page_directory.size(); ++i_pdpt) {
