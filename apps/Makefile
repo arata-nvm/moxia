@@ -1,5 +1,5 @@
 .PHONY: build
-build: rpn fault readfile
+build: rpn fault readfile grep
 
 .FORCE:
 
@@ -11,6 +11,9 @@ fault: .FORCE
 
 readfile: .FORCE	
 	make -C ./readfile
+
+grep: .FORCE	
+	make -C ./grep
 
 clean:
 	find . -name "*.o" -exec rm {} \;

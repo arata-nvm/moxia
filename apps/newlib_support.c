@@ -14,8 +14,17 @@ int fstat(int fd, struct stat *buf) {
   return -1;
 }
 
+pid_t getpid(void) {
+  return 0;
+}
+
 int isatty(int fd) {
   errno = EBADF;
+  return -1;
+}
+
+int kill(pid_t pid, int sig) {
+  errno = EPERM;
   return -1;
 }
 
@@ -30,6 +39,16 @@ caddr_t sbrk(int incr) {
   int prev = i;
   i += incr;
   return (caddr_t)&heap[prev];
+}
+
+int posix_memalign(void **memptr, size_t alignment, size_t size) {
+  void *p = malloc(size + alignment - 1);
+  if (!p) {
+    return ENOMEM;
+  }
+  uintptr_t addr = (uintptr_t)p;
+  *memptr = (void *)((addr + alignment - 1) & ~(uintptr_t)(alignment - 1));
+  return 0;
 }
 
 int open(const char *path, int flags) {
